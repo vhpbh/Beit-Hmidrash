@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="he"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>לוח המובילים - אפליקציית לימוד</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ffb700",
+                        "background-light": "#f8f8f5",
+                        "background-dark": "#231d0f",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        body {
+            font-family: 'Lexend', sans-serif;
+        }
+    </style>
+
+<meta name="NetsparkQuiltingResult" total-length="12854" removed="0" rules-found="w3500,w7683,w3496,w2713,w3077,w4876,w4877,w11302,w6360,w9457,w9478,w9479,w10378,w6361,w36619,w24182,w5526,w23592,w2635" />
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#1d180c] min-h-screen flex flex-col">
+<!-- Top Navigation Header -->
+
+<main class="flex-1 w-full max-w-4xl mx-auto px-4 py-6 mb-24"><div class="flex items-center gap-3 mb-8">
+<div class="bg-primary p-2 rounded-full text-white">
+<span class="material-symbols-outlined text-2xl">trophy</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight text-[#1d180c]">לוח המובילים</h1>
+</div>
+<!-- Tabs / Segmented Control -->
+<div class="flex p-1 bg-[#f0ede4] rounded-full mb-6 max-w-sm mx-auto">
+<button class="flex-1 py-2 px-4 rounded-full bg-white shadow-sm font-semibold text-sm transition-all">
+                לפי לימוד
+            </button>
+<button class="flex-1 py-2 px-4 rounded-full text-[#a18745] font-semibold text-sm hover:text-[#1d180c] transition-all">
+                לפי רייטינג
+            </button>
+</div>
+<!-- Filters -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+<div class="relative">
+<p class="text-sm font-semibold mb-2 pr-2">חפש לפי ספר</p>
+<div class="relative">
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-[#a18745]">menu_book</span>
+<input class="w-full h-12 pr-12 pl-4 rounded-xl border-[#eae1cd] bg-white focus:ring-primary focus:border-primary text-sm" placeholder="בחר ספר לימוד..." type="text"/>
+</div>
+</div>
+<div class="relative">
+<p class="text-sm font-semibold mb-2 pr-2">חפש לפי עיר</p>
+<div class="relative">
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-[#a18745]">location_on</span>
+<input class="w-full h-12 pr-12 pl-4 rounded-xl border-[#eae1cd] bg-white focus:ring-primary focus:border-primary text-sm" placeholder="בחר עיר..." type="text"/>
+</div>
+</div>
+</div>
+<!-- Current User Status (Me) Highlighted -->
+<div class="bg-primary/10 border-2 border-primary rounded-2xl p-4 mb-8 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-4">
+<div class="text-primary font-black text-xl w-8 text-center">14</div>
+<div class="w-14 h-14 rounded-full bg-cover bg-center border-2 border-white shadow-md" data-alt="Current user personal avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCsz-Ude_482FjAV-Ipcb-Y3rFp7KlnwUpvGt9lJk-ZHSURakl0Ne1t25z0mXV2N6jhSdJTCVGneHC41g3Uis_Tv54n5uarm8JvDuWElAsBr3BL9OcvxXPMZhoa2mRkQd2MwJ-ZdwjLobZTvss3iZar0aiIhIrMv0y8ClEu7TSASoKtnlb4KvY7MLWXfZ04SCghE-sXRP_ZgnhlArP2F2Sq9p8U5GqHc7SYAWgu0gWrdmucnC2fEmEh6AsLtzgVtV5pPWhsSNMp0Xw');"></div>
+<div>
+<h3 class="font-bold text-[#1d180c]">יהודה יהודי (אני)</h3>
+<p class="text-xs text-[#a18745] font-medium">צורבא מרבנן • ירושלים</p>
+</div>
+</div>
+<div class="text-left">
+<p class="text-xl font-black text-primary">545</p>
+<p class="text-[10px] uppercase tracking-wider font-bold opacity-60">נקודות</p>
+</div>
+</div>
+<!-- Leaderboard List -->
+<div class="space-y-3">
+<!-- Rank 1 -->
+<div class="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-[#f0ede4] hover:border-primary/30 transition-colors">
+<div class="flex items-center gap-4">
+<div class="text-primary font-black text-2xl w-8 text-center">1</div>
+<div class="w-12 h-12 rounded-full bg-cover bg-center relative" data-alt="Profile picture of top ranked student" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCFuVzZcjoHdiGm7cD1zr1w2HHFlvarnTudXfN_k9HCiKeUBsPUDcJZpUXa1mlIGcDbK7nhlSmYRcZ8QIgtF8i-AvKtV-NXJEJj7RlAKqMELG4x8s10p4U76oQcc2Rs4xuKkKe1jNO1fOWmbZjjh_56J_nTaTe-irnyZuT-FHs8lvNKjQcw7_VZkeH4NcSq04Ac6Y2EmNFDb891030WqCIrEZVei0h5NAgsK_T3X8DdKKxz1xRZ7g_VoCBwQ0YtWjmZZngaqmxjK5I');">
+<div class="absolute -top-1 -right-1 bg-primary text-white text-[10px] p-0.5 rounded-full ring-2 ring-white">
+<span class="material-symbols-outlined text-xs fill">star</span>
+</div>
+</div>
+<div>
+<h3 class="font-bold text-[#1d180c]">אברהם כהן</h3>
+<p class="text-xs text-[#a18745]">תלמיד חכם • בני ברק</p>
+</div>
+</div>
+<div class="text-left">
+<p class="text-lg font-bold text-[#1d180c]">1,280</p>
+<p class="text-[10px] opacity-60 font-bold uppercase">נקודות</p>
+</div>
+</div>
+<!-- Rank 2 -->
+<div class="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-[#f0ede4]">
+<div class="flex items-center gap-4">
+<div class="text-[#a18745] font-black text-xl w-8 text-center opacity-60">2</div>
+<div class="w-12 h-12 rounded-full bg-cover bg-center" data-alt="Student profile image rank 2" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCAJm_in82T8ijyXyy8W67FHTJb5IJ18ThhePgUkwCZv9syA331UxXP8yVYDanZR9xTBh6RNEkG0A2ZNQXKtEharNdzqyMReON6CO2MS2YkpCrPVZj2FiHy-PCCYgOMcvC_QCqhqVNOf8j7cpJ1W-v68V-L3i6e4_a1zBGylOopa_z8YWR5vhAji7_2BrtXXg43fgfUArufg5gl9QC1cYcSDCjMj9_MCFkklo5J-tRP44CPdBGwblWQsvRjAnIP2aoJ8BUwLffoe8M');"></div>
+<div>
+<h3 class="font-bold text-[#1d180c]">יצחק לוי</h3>
+<p class="text-xs text-[#a18745]">מתמיד • פתח תקווה</p>
+</div>
+</div>
+<div class="text-left">
+<p class="text-lg font-bold text-[#1d180c]">1,150</p>
+<p class="text-[10px] opacity-60 font-bold uppercase">נקודות</p>
+</div>
+</div>
+<!-- Rank 3 -->
+<div class="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-[#f0ede4]">
+<div class="flex items-center gap-4">
+<div class="text-[#a18745] font-black text-xl w-8 text-center opacity-40">3</div>
+<div class="w-12 h-12 rounded-full bg-cover bg-center" data-alt="Student profile image rank 3" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCZC3o_3_tys6-S_ecJCGvyjw1RYx0n7Y-cQo1oVg7uAG22TF36HyD84J_eYeRmTyIbU35IYg4tkwfXxGMGjdYC1wWGEpi83-nLi-6tg1GJAZvew9429YslQ-XxntJisWTzT4z6MTGEFOKAd1sc_4J7fxkG62RLWUS-omB6urD4-0tWQpbY8vRuj_Z4UbPOpj7hguAfcJNwRS5uWqOjF2yt0s3ppN2lwCZG9drsrhqo4h02xP-FZ6OzfSUj1zuIAFRm1fKxicUIUns');"></div>
+<div>
+<h3 class="font-bold text-[#1d180c]">משה שפירא</h3>
+<p class="text-xs text-[#a18745]">אורייתא • אלעד</p>
+</div>
+</div>
+<div class="text-left">
+<p class="text-lg font-bold text-[#1d180c]">980</p>
+<p class="text-[10px] opacity-60 font-bold uppercase">נקודות</p>
+</div>
+</div>
+<!-- Rank 4 -->
+<div class="bg-white/50 rounded-2xl p-4 flex items-center justify-between shadow-sm border border-[#f0ede4]">
+<div class="flex items-center gap-4">
+<div class="text-[#a18745] font-black text-lg w-8 text-center opacity-30">4</div>
+<div class="w-12 h-12 rounded-full bg-cover bg-center grayscale" data-alt="Student profile image rank 4" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBT798Uz3hlY_70HUwsi1imoO6yzXVpOmPFjnM_x_2iF8NTfxK71Dv4c8K7s3dCp8nHMesR3EHpPVcVL5w1XX9APd4oekq8QUmq9Dk0Dljd5bPVbuSZBKiomn2ROdjYsYDSXD3_ZlC9GfQyFsxz1E8WEuyzWmdkNPr3gIDeH2ZKAtqfXV0jnI8y-9VRO3jCS3323y1JvpTAyr1J6gNQu1aEMB7VBs7OzqAV4ckdOhkpUWg-37EW0oGXtZBlOcqRw5kAdEn1HChjPrU');"></div>
+<div>
+<h3 class="font-bold text-[#1d180c] opacity-80">דוד מלכה</h3>
+<p class="text-xs text-[#a18745] opacity-80">לומד לשמה • נתניה</p>
+</div>
+</div>
+<div class="text-left">
+<p class="text-lg font-bold text-[#1d180c] opacity-80">845</p>
+<p class="text-[10px] opacity-50 font-bold uppercase">נקודות</p>
+</div>
+</div>
+<!-- Rank 5 -->
+<div class="bg-white/50 rounded-2xl p-4 flex items-center justify-between shadow-sm border border-[#f0ede4]">
+<div class="flex items-center gap-4">
+<div class="text-[#a18745] font-black text-lg w-8 text-center opacity-30">5</div>
+<div class="w-12 h-12 rounded-full bg-cover bg-center grayscale" data-alt="Student profile image rank 5" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBXdwChDPL6YPNKkgE_n0Z7MgKN0iXthaay1mLLj3mlToPs6dxMH_2cEFT-QYXBYiDTGlMeGTPwQme7sYhGhBoFmkTMtzjGEoUMfPHYV6PPsF1alWNCydbZy9gub8MOAcnz_tbGXKx8xNYkUBSv8aBWVMuhCiACPwDSC5nkRBwGfEhGxSQXyIBiSmpccZTnKsYABufTqVxmtb7mUTz0pv-841vA35CDvzduWDj9zEw2-JXEHwksAxDs43qCpUxECmIBM76VP-SIxq0');"></div>
+<div>
+<h3 class="font-bold text-[#1d180c] opacity-80">מיכאל אטיאס</h3>
+<p class="text-xs text-[#a18745] opacity-80">צורבא • בית שמש</p>
+</div>
+</div>
+<div class="text-left">
+<p class="text-lg font-bold text-[#1d180c] opacity-80">790</p>
+<p class="text-[10px] opacity-50 font-bold uppercase">נקודות</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-[#eae1cd] pb-6 pt-3 px-6 z-50">
+<div class="max-w-md mx-auto flex items-center justify-between">
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="p-1 rounded-full group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[#a18745] group-hover:text-primary transition-colors">home</span>
+</div>
+<span class="text-[10px] font-bold text-[#a18745]">בית</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="p-1 rounded-full group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[#a18745] group-hover:text-primary transition-colors">calendar_month</span>
+</div>
+<span class="text-[10px] font-bold text-[#a18745]">יומן</span>
+</a>
+<a class="flex flex-col items-center gap-1" href="#">
+<div class="bg-primary p-2 rounded-full shadow-lg -mt-8 border-4 border-background-light">
+<span class="material-symbols-outlined text-white fill">trophy</span>
+</div>
+<span class="text-[10px] font-bold text-primary">מובילים</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="p-1 rounded-full group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[#a18745] group-hover:text-primary transition-colors">forum</span>
+</div>
+<span class="text-[10px] font-bold text-[#a18745]">צ'אטים</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="p-1 rounded-full group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[#a18745] group-hover:text-primary transition-colors">person</span>
+</div>
+<span class="text-[10px] font-bold text-[#a18745]">פרופיל</span>
+</a>
+</div>
+</nav>
+<input type='hidden' name='ntsp_block_page' value='https://safepage.etrog.net.il/?a=block/block1&level=5&url=http%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzUyMTNjZjg4ZWU4ZTQ4NzRhN2YzNTA0ZjM2MTBkMzg5EgsSBxChi7GCigUYAZIBIwoKcHJvamVjdF9pZBIVQhM3Mzc1NjAyOTY4NjcyODE2NTcw%26filename%3D%26opi%3D89354086&user_id=582805&sigid=9fbe03793a9ef6a61144a5aa1c941c39723405f16cec73710eea4b945b65be92&startm=202302&keyword=&referer=https%3A%2F%2Fapp-companion-430619.appspot.com%2F&category=66&cause=Quiltingjs'/><input type='hidden' name='nts_id' value='582805'/><input type='hidden' name='sigid' value='c88486ea4abb8d1a8d35a0c4e4c7ae99'/><script src='/jsQuilting/server/etAddOn.js?v=1&k=23898278c1850f536d688db3614128a0' type='text/javascript' defer></script></body></html>

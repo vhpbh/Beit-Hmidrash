@@ -1,0 +1,24 @@
+SELECT 
+    cols.table_schema, 
+    cols.table_name, 
+    cols.column_name, 
+    cols.data_type, 
+    kcu.constraint_name AS foreign_key_name,
+    ccu.table_schema AS foreign_table_schema,
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name
+FROM 
+    information_schema.columns cols
+LEFT JOIN 
+    information_schema.key_column_usage kcu 
+    ON cols.table_schema = kcu.table_schema 
+    AND cols.table_name = kcu.table_name 
+    AND cols.column_name = kcu.column_name
+LEFT JOIN 
+    information_schema.constraint_column_usage ccu 
+    ON kcu.constraint_name = ccu.constraint_name
+WHERE 
+    cols.table_schema = 'public' -- מסנן לטבלאות שאתה יצרת
+ORDER BY 
+    cols.table_name, 
+    cols.ordinal_position;

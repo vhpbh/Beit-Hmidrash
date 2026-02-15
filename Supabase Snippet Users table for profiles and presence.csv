@@ -1,0 +1,146 @@
+table_schema,table_name,column_name,data_type,foreign_key_name,foreign_table_schema,foreign_table_name,foreign_column_name
+public,ad_stats,id,bigint,ad_stats_pkey,public,ad_stats,id
+public,ad_stats,event_type,text,null,null,null,null
+public,ad_stats,ad_id,text,null,null,null,null
+public,ad_stats,created_at,timestamp with time zone,null,null,null,null
+public,book_chat_reactions,id,bigint,book_chat_reactions_pkey,public,book_chat_reactions,id
+public,book_chat_reactions,message_id,bigint,book_chat_reactions_message_id_user_email_key,public,book_chat_reactions,message_id
+public,book_chat_reactions,message_id,bigint,book_chat_reactions_message_id_user_email_key,public,book_chat_reactions,user_email
+public,book_chat_reactions,message_id,bigint,book_chat_reactions_message_id_fkey,public,book_chats,id
+public,book_chat_reactions,user_email,text,book_chat_reactions_user_email_fkey,public,users,email
+public,book_chat_reactions,user_email,text,book_chat_reactions_message_id_user_email_key,public,book_chat_reactions,message_id
+public,book_chat_reactions,user_email,text,book_chat_reactions_message_id_user_email_key,public,book_chat_reactions,user_email
+public,book_chat_reactions,reaction,text,null,null,null,null
+public,book_chats,id,bigint,book_chats_pkey,public,book_chats,id
+public,book_chats,created_at,timestamp with time zone,null,null,null,null
+public,book_chats,book_name,text,null,null,null,null
+public,book_chats,sender_email,text,book_chats_sender_email_fkey,public,users,email
+public,book_chats,message,text,null,null,null,null
+public,chat_messages,id,bigint,chat_messages_pkey,public,chat_messages,id
+public,chat_messages,created_at,timestamp with time zone,null,null,null,null
+public,chat_messages,sender_email,text,null,null,null,null
+public,chat_messages,receiver_email,text,null,null,null,null
+public,chat_messages,message,text,null,null,null,null
+public,chat_messages,is_read,boolean,null,null,null,null
+public,chat_messages,is_html,boolean,null,null,null,null
+public,chavruta_requests,id,uuid,chavruta_requests_pkey,public,chavruta_requests,id
+public,chavruta_requests,sender_email,text,null,null,null,null
+public,chavruta_requests,receiver_email,text,null,null,null,null
+public,chavruta_requests,book_name,text,null,null,null,null
+public,chavruta_requests,status,text,null,null,null,null
+public,chavruta_requests,created_at,timestamp with time zone,null,null,null,null
+public,cookie_consents,id,bigint,cookie_consents_pkey,public,cookie_consents,id
+public,cookie_consents,user_email,text,null,null,null,null
+public,cookie_consents,ip_address,text,null,null,null,null
+public,cookie_consents,user_agent,text,null,null,null,null
+public,cookie_consents,accepted_at,timestamp with time zone,null,null,null,null
+public,message_reactions,id,bigint,message_reactions_pkey,public,message_reactions,id
+public,message_reactions,message_id,bigint,message_reactions_message_id_user_email_key,public,message_reactions,user_email
+public,message_reactions,message_id,bigint,message_reactions_message_id_fkey,public,chat_messages,id
+public,message_reactions,message_id,bigint,message_reactions_message_id_user_email_key,public,message_reactions,message_id
+public,message_reactions,user_email,text,message_reactions_message_id_user_email_key,public,message_reactions,user_email
+public,message_reactions,user_email,text,message_reactions_message_id_user_email_key,public,message_reactions,message_id
+public,message_reactions,reaction_type,text,null,null,null,null
+public,message_reactions,created_at,timestamp with time zone,null,null,null,null
+public,note_permissions,id,bigint,note_permissions_pkey,public,note_permissions,id
+public,note_permissions,goal_id,text,note_permissions_unique,public,note_permissions,goal_id
+public,note_permissions,goal_id,text,note_permissions_unique,public,note_permissions,shared_with_email
+public,note_permissions,owner_email,text,null,null,null,null
+public,note_permissions,shared_with_email,text,note_permissions_unique,public,note_permissions,goal_id
+public,note_permissions,shared_with_email,text,note_permissions_unique,public,note_permissions,shared_with_email
+public,note_permissions,permission_level,text,null,null,null,null
+public,note_permissions,created_at,timestamp with time zone,null,null,null,null
+public,rating_ranks,rank_name,text,rating_ranks_pkey,public,rating_ranks,rank_name
+public,rating_ranks,min_points,integer,null,null,null,null
+public,settings,key,text,settings_pkey,public,settings,key
+public,settings,value,text,null,null,null,null
+public,settings,updated_at,timestamp with time zone,null,null,null,null
+public,shared_notes,id,bigint,shared_notes_pkey,public,shared_notes,id
+public,shared_notes,note_id,text,null,null,null,null
+public,shared_notes,owner_email,text,null,null,null,null
+public,shared_notes,shared_with_email,text,null,null,null,null
+public,shared_notes,content,text,null,null,null,null
+public,shared_notes,can_edit,boolean,null,null,null,null
+public,shared_notes,created_at,timestamp with time zone,null,null,null,null
+public,shared_notes,updated_at,timestamp with time zone,null,null,null,null
+public,site_visits,id,bigint,site_visits_pkey,public,site_visits,id
+public,site_visits,visitor_id,text,null,null,null,null
+public,site_visits,user_email,text,null,null,null,null
+public,site_visits,visited_at,timestamp with time zone,null,null,null,null
+public,siyum_board,id,bigint,siyum_board_pkey,public,siyum_board,id
+public,siyum_board,user_email,text,siyum_board_user_email_fkey,public,users,email
+public,siyum_board,book_name,text,null,null,null,null
+public,siyum_board,completed_at,timestamp with time zone,null,null,null,null
+public,siyum_reactions,id,bigint,siyum_reactions_pkey,public,siyum_reactions,id
+public,siyum_reactions,siyum_id,bigint,siyum_reactions_siyum_id_reactor_email_key,public,siyum_reactions,reactor_email
+public,siyum_reactions,siyum_id,bigint,siyum_reactions_siyum_id_reactor_email_key,public,siyum_reactions,siyum_id
+public,siyum_reactions,siyum_id,bigint,siyum_reactions_siyum_id_fkey,public,siyum_board,id
+public,siyum_reactions,reactor_email,text,siyum_reactions_reactor_email_fkey,public,users,email
+public,siyum_reactions,reactor_email,text,siyum_reactions_siyum_id_reactor_email_key,public,siyum_reactions,reactor_email
+public,siyum_reactions,reactor_email,text,siyum_reactions_siyum_id_reactor_email_key,public,siyum_reactions,siyum_id
+public,siyum_reactions,created_at,timestamp with time zone,null,null,null,null
+public,store_items,id,text,store_items_pkey,public,store_items,id
+public,store_items,item_type,text,null,null,null,null
+public,store_items,name,text,null,null,null,null
+public,store_items,description,text,null,null,null,null
+public,store_items,price,integer,null,null,null,null
+public,store_items,preview_url,text,null,null,null,null
+public,suggestions,id,bigint,suggestions_pkey,public,suggestions,id
+public,suggestions,user_email,text,null,null,null,null
+public,suggestions,content,text,null,null,null,null
+public,suggestions,created_at,timestamp with time zone,null,null,null,null
+public,system_announcements,id,bigint,system_announcements_pkey,public,system_announcements,id
+public,system_announcements,message,text,null,null,null,null
+public,system_announcements,created_at,timestamp with time zone,null,null,null,null
+public,user_consents,id,bigint,user_consents_pkey,public,user_consents,id
+public,user_consents,user_ip,text,null,null,null,null
+public,user_consents,user_agent,text,null,null,null,null
+public,user_consents,consented_at,timestamp with time zone,null,null,null,null
+public,user_followers,id,bigint,user_followers_pkey,public,user_followers,id
+public,user_followers,follower_email,text,user_followers_follower_email_following_email_key,public,user_followers,follower_email
+public,user_followers,follower_email,text,user_followers_follower_email_following_email_key,public,user_followers,following_email
+public,user_followers,following_email,text,user_followers_follower_email_following_email_key,public,user_followers,follower_email
+public,user_followers,following_email,text,user_followers_follower_email_following_email_key,public,user_followers,following_email
+public,user_followers,created_at,timestamp with time zone,null,null,null,null
+public,user_goals,id,text,user_goals_pkey,public,user_goals,id
+public,user_goals,user_email,text,user_goals_user_email_fkey,public,users,email
+public,user_goals,book_name,text,null,null,null,null
+public,user_goals,total_units,integer,null,null,null,null
+public,user_goals,current_unit,integer,null,null,null,null
+public,user_goals,status,text,null,null,null,null
+public,user_goals,target_date,text,null,null,null,null
+public,user_goals,dedication,text,null,null,null,null
+public,user_goals,created_at,timestamp with time zone,null,null,null,null
+public,user_goals,notes,jsonb,null,null,null,null
+public,user_goals,notes_shared_with,text,null,null,null,null
+public,user_goals,collaborators,jsonb,null,null,null,null
+public,user_inventory,id,bigint,user_inventory_pkey,public,user_inventory,id
+public,user_inventory,user_email,text,user_inventory_user_email_fkey,public,users,email
+public,user_inventory,user_email,text,user_inventory_user_email_item_id_key,public,user_inventory,item_id
+public,user_inventory,user_email,text,user_inventory_user_email_item_id_key,public,user_inventory,user_email
+public,user_inventory,item_id,text,user_inventory_item_id_fkey,public,store_items,id
+public,user_inventory,item_id,text,user_inventory_user_email_item_id_key,public,user_inventory,item_id
+public,user_inventory,item_id,text,user_inventory_user_email_item_id_key,public,user_inventory,user_email
+public,user_inventory,acquired_at,timestamp with time zone,null,null,null,null
+public,user_reports,id,bigint,user_reports_pkey,public,user_reports,id
+public,user_reports,created_at,timestamp with time zone,null,null,null,null
+public,user_reports,reporter_email,text,null,null,null,null
+public,user_reports,reported_email,text,null,null,null,null
+public,user_reports,reason,text,null,null,null,null
+public,users,email,text,users_pkey,public,users,email
+public,users,display_name,text,null,null,null,null
+public,users,city,text,null,null,null,null
+public,users,phone,text,null,null,null,null
+public,users,is_anonymous,boolean,null,null,null,null
+public,users,last_seen,timestamp with time zone,null,null,null,null
+public,users,password,text,null,null,null,null
+public,users,subscription,jsonb,null,null,null,null
+public,users,address,text,null,null,null,null
+public,users,security_questions,jsonb,null,null,null,null
+public,users,is_banned,boolean,null,null,null,null
+public,users,rating_points,integer,null,null,null,null
+public,users,reward_points,integer,null,null,null,null
+public,users,marketing_consent,boolean,null,null,null,null
+public,users,is_bot,boolean,null,null,null,null
+public,users,age,integer,null,null,null,null
+public,users,chat_rating,integer,null,null,null,null

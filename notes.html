@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מחברת חידושים</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Heebo', sans-serif; margin: 0; padding: 0; background: #f1f5f9; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 250px; background: #fff; border-left: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; font-weight: bold; color: #334155; display: flex; justify-content: space-between; align-items: center; }
+        .note-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .note-item { padding: 10px; border-radius: 8px; cursor: pointer; margin-bottom: 5px; transition: 0.2s; border: 1px solid transparent; }
+        .note-item:hover { background: #f1f5f9; }
+        .note-item.active { background: #eff6ff; border-color: #3b82f6; color: #1e40af; font-weight: bold; }
+        .main-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
+        .toolbar { padding: 10px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 10px; align-items: center; background: #fff; }
+        .editor { flex: 1; padding: 40px; outline: none; overflow-y: auto; font-size: 1.1rem; line-height: 1.6; color: #333; }
+        .btn-tool { background: none; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px 10px; cursor: pointer; color: #64748b; transition: 0.2s; }
+        .btn-tool:hover { background: #f1f5f9; color: #334155; }
+        .btn-tool.active { background: #e2e8f0; color: #000; }
+        .btn-primary { background: #3b82f6; color: white; border: none; }
+        .btn-primary:hover { background: #2563eb; color: white; }
+        .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8; flex-direction: column; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <span><i class="fas fa-book"></i> המחברת שלי</span>
+        <button class="btn-tool btn-primary" onclick="createNewNote()" title="דף חדש"><i class="fas fa-plus"></i></button>
+    </div>
+    <div class="note-list" id="noteList"></div>
+</div>
+
+<div class="main-area">
+    <div class="toolbar" id="toolbar" style="display:none;">
+        <button class="btn-tool" onclick="formatDoc('bold')" title="מודגש"><i class="fas fa-bold"></i></button>
+        <button class="btn-tool" onclick="formatDoc('italic')" title="נטוי"><i class="fas fa-italic"></i></button>
+        <button class="btn-tool" onclick="formatDoc('underline')" title="קו תחתון"><i class="fas fa-underline"></i></button>
+        <div style="width: 1px; height: 20px; background: #e2e8f0; margin: 0 5px;"></div>
+        <button class="btn-tool" onclick="downloadNote()" title="הורד כקובץ"><i class="fas fa-download"></i></button>
+        <button class="btn-tool" onclick="shareNote()" title="שתף עם חברותא"><i class="fas fa-share-alt"></i></button>
+        <div style="flex:1;"></div>
+        <span id="saveStatus" style="font-size:0.8rem; color:#94a3b8;">נשמר</span>
+    </div>
+    <div id="editor" class="editor" contenteditable="true" style="display:none;" oninput="handleInput()"></div>
+    <div id="emptyState" class="empty-state">
+        <i class="fas fa-book-open" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.3;"></i>
+        <p>בחר דף מהרשימה או צור דף חדש</p>
+    </div>
+</div>
+
+<script>
+    let notes = [];
+    let activeNoteId = null;
+    let context = null;
+
+    // טעינת נתונים מהחלון הראשי
+    window.onload = function() {
+        try {
+            const stored = localStorage.getItem('current_notes_context');
+            if (stored) {
+                context = JSON.parse(stored);
+                // המרת פורמט ישן לחדש אם צריך
+                if (Array.isArray(context.notes)) {
+                    notes = context.notes.map((n, i) => ({
+                        id: n.id || Date.now() + i,
+                        title: n.title || `חידוש ${i+1}`,
+                        content: n.content || n,
+                        date: n.date || new Date().toISOString()
+                    }));
+                }
+                renderList();
+                if (notes.length > 0) loadNote(notes[0].id);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    function renderList() {
+        const list = document.getElementById('noteList');
+        list.innerHTML = '';
+        notes.forEach(note => {
+            const div = document.createElement('div');
+            div.className = `note-item ${activeNoteId === note.id ? 'active' : ''}`;
+            div.innerText = note.title;
+            div.onclick = () => loadNote(note.id);
+            list.appendChild(div);
+        });
+    }
+
+    function loadNote(id) {
+        activeNoteId = id;
+        const note = notes.find(n => n.id === id);
+        if (!note) return;
+
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('toolbar').style.display = 'flex';
+        const editor = document.getElementById('editor');
+        editor.style.display = 'block';
+        editor.innerHTML = note.content;
+        renderList();
+    }
+
+    function createNewNote() {
+        const title = prompt("שם הדף החדש:", "חידוש חדש");
+        if (!title) return;
+        
+        const newNote = {
+            id: Date.now(),
+            title: title,
+            content: '<div>התחל לכתוב כאן...</div>',
+            date: new Date().toISOString()
+        };
+        notes.push(newNote);
+        renderList();
+        loadNote(newNote.id);
+        saveNotes();
+    }
+
+    function handleInput() {
+        const status = document.getElementById('saveStatus');
+        status.innerText = 'שומר...';
+        
+        if (activeNoteId) {
+            const note = notes.find(n => n.id === activeNoteId);
+            note.content = document.getElementById('editor').innerHTML;
+            
+            // Debounce save
+            clearTimeout(window.saveTimeout);
+            window.saveTimeout = setTimeout(() => {
+                saveNotes();
+                status.innerText = 'נשמר';
+            }, 1000);
+        }
+    }
+
+    function saveNotes() {
+        // עדכון בחלון האב
+        if (window.parent && window.parent.updateGoalNotes && context.goalId) {
+            window.parent.updateGoalNotes(context.goalId, notes);
+        }
+    }
+
+    function formatDoc(cmd, value = null) {
+        document.execCommand(cmd, false, value);
+        document.getElementById('editor').focus();
+    }
+
+    function downloadNote() {
+        if (!activeNoteId) return;
+        const note = notes.find(n => n.id === activeNoteId);
+        const text = document.getElementById('editor').innerText;
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${note.title}.txt`;
+        a.click();
+    }
+
+    async function shareNote() {
+        if (!activeNoteId) return;
+        const note = notes.find(n => n.id === activeNoteId);
+        
+        if (!context.partnerName) {
+            alert("אין חברותא מוגדרת ללימוד זה, לא ניתן לשתף.");
+            return;
+        }
+
+        const canEdit = confirm(`האם לשתף את "${note.title}" עם ${context.partnerName}?\n\nלחץ 'אישור' כדי לתת הרשאת עריכה, או 'ביטול' כדי לשתף לצפייה בלבד.`);
+        
+        // שימוש בפונקציית האב לשליחת הודעה/עדכון DB
+        // כאן אנו מדמים קריאה לפונקציה שתטפל ב-SQL
+        // נשתמש ב-chat_messages כדי לשלוח את התוכן כרגע, או נבקש מהאב להריץ שאילתה
+        
+        const parentSupabase = window.parent.supabaseClient;
+        const currentUser = window.parent.currentUser;
+        
+        if (parentSupabase && currentUser) {
+            // שליחת התוכן כהודעה (פתרון מהיר ללא טבלה חדשה)
+            // או יצירת רשומה בטבלה ייעודית אם קיימת
+            
+            const msg = `📄 <strong>שיתוף דף חידושים:</strong> ${note.title}<br><br>${note.content}<br><br><em>(הרשאת עריכה: ${canEdit ? 'כן' : 'לא'})</em>`;
+            
+            try {
+                // מציאת המייל של החברותא דרך הקונטקסט או חיפוש בחלון האב
+                // נניח שהקונטקסט מכיל את המייל או שנשלח דרך הצ'אט הפעיל
+                const partnerEmail = getPartnerEmail(); 
+                if(partnerEmail) {
+                    await parentSupabase.from('chat_messages').insert([{
+                        sender_email: currentUser.email,
+                        receiver_email: partnerEmail,
+                        message: msg,
+                        is_html: true
+                    }]);
+                    alert("הדף נשלח לחברותא בהצלחה!");
+                } else {
+                    alert("שגיאה בזיהוי החברותא.");
+                }
+            } catch(e) {
+                console.error(e);
+                alert("שגיאה בשיתוף.");
+            }
+        }
+    }
+
+    function getPartnerEmail() {
+        // ניסיון לחלץ את המייל של החברותא מהנתונים בחלון האב
+        const connections = window.parent.chavrutaConnections;
+        const conn = connections.find(c => c.book === context.bookName);
+        return conn ? conn.email : null;
+    }
+</script>
+</body>
+</html>

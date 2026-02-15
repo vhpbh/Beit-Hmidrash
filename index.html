@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בית המדרש | פורטל לימוד</title>
+<link rel="icon" type="image/png" sizes="32x32" href="https://i.ibb.co/mrPRZ6FR/3-removebg-preview.png">
+<link rel="apple-touch-icon" href="https://i.ibb.co/mrPRZ6FR/3-removebg-preview.png">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="api.js"></script>
+<script src="utils.js"></script>
+<script src="books_db.js"></script>
+<script src="chat.js"></script>
+<script src="script.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+ <div id="suggestionModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h3><i class="fas fa-lightbulb" style="color:var(--accent);"></i> הצעת ייעול</h3>
+        <p>יש לך רעיון איך לשפר את בית המדרש? נשמח לשמוע!</p>
+        <textarea id="suggestionInput" class="auth-input" placeholder="כתוב כאן את ההצעה שלך..." style="height:120px;"></textarea>
+        <button class="btn" onclick="sendSuggestion()">שלח הצעה</button>
+    </div>
+ </div>
+
+ <div id="cookieModal" class="modal-overlay" style="z-index: 99999; align-items: flex-end; background: rgba(0,0,0,0.3);">
+    <div class="modal-content" style="width: 90%; max-width: 600px; text-align: right; animation: slideInUp 0.5s; margin-bottom: 100px; border-radius: 16px;">
+        <h3 style="margin-top:0;"><i class="fas fa-cookie-bite" style="color:#d97706;"></i> עוגיות (Cookies)</h3>
+        <p>אנחנו משתמשים בעוגיות כדי לשפר את החוויה באתר. אל דאגה, הן כשרות לפסח! (או שנמכור אותן לגוי בזמן... 😉)</p>
+        <div style="display:flex; gap:10px;">
+            <button class="btn" onclick="acceptCookies()">אני מאשר/ת</button>
+            <button class="btn-outline" onclick="document.getElementById('cookieModal').style.display='none'" style="border-radius: 8px;">לא מאשר</button>
+        </div>
+    </div>
+ </div>
+
+<div id="chavrutaModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h3><i class="fas fa-users"></i> חיפוש חברותא</h3>
+        <p>לומדים שנמצאו ב-<strong id="chavrutaBookTitle"></strong>:</p>
+        <div id="chavrutaResultsList" style="max-height: 200px; overflow-y: auto;"></div>
+    </div>
+</div>    
+
+<div id="adminChatModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px; height: 80vh; display:flex; flex-direction:column;">
+        <span class="close-modal" onclick="closeAdminChat()">&times;</span>
+        <h3><i class="fas fa-history"></i> היסטוריית צ'אט</h3>
+        <div id="adminChatContent" style="flex:1; overflow-y:auto; background:#f1f5f9; padding:15px; border-radius:8px; text-align:right;"></div>
+    </div>
+</div>
+
+<div id="bookReaderModal" class="modal-overlay" style="z-index: 4000;">
+    <div class="modal-content" style="width: 95%; max-width: 1200px; height: 90vh; padding: 0; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px;">
+            <h3 id="bookReaderTitle" style="margin: 0; color: white; border: none;">טוען ספר...</h3>
+            <div style="display:flex; gap:15px; align-items:center;">
+                <button class="btn-outline" onclick="toggleFocusMode()" style="color:white; border-color:white; font-size:0.8rem; padding:4px 8px;"><i class="fas fa-expand"></i> מצב מרוכז</button>
+                <span class="close-modal" onclick="closeModal()" style="position: static; color: white; transform: none;">&times;</span>
+            </div>
+        </div>
+        <iframe id="bookReaderFrame" style="flex: 1; border: none;" src="about:blank"></iframe>
+    </div>
+</div>
+
+<!-- Network Monitor Overlay (Data War) -->
+<div id="dataWarOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:99999; align-items:center; justify-content:center; flex-direction:column; backdrop-filter: blur(5px);">
+    <div style="background:#1e293b; padding:30px; border-radius:20px; width:90%; max-width:700px; border:1px solid #334155; box-shadow:0 25px 60px rgba(0,0,0,0.6); position: relative;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="color:#fff; text-align:center; margin:0; font-family:monospace; letter-spacing: 2px;"><i class="fas fa-network-wired"></i> NETWORK MONITOR</h3>
+            <div>
+                <button id="verboseToggleBtn" onclick="toggleVerboseNetworkLog(this)" class="admin-btn" style="background:#334155;">הצג בקשות רקע</button>
+                <button onclick="toggleDataWar()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer; vertical-align:middle;">&times;</button>
+            </div>
+        </div>
+        <div id="network-visualizer" style="position: relative; height: 300px; width: 100%; margin: 20px 0; background: #0f172a; border-radius: 12px; border: 1px solid #334155; overflow:hidden;">
+            <div id="cloud-icon" data-id="cloud" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3.5rem; z-index: 10;">☁️</div>
+            <div id="user-icons-container"></div>
+            <svg id="network-lines-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;"></svg>
+        </div>
+        <div id="networkLog" style="height:180px; overflow-y:auto; background:#0f172a; padding:15px; border-radius:12px; font-family:monospace; font-size:0.85rem; color:#22c55e; border: 1px solid #334155;"></div>
+    </div>
+    <div style="color:#94a3b8; margin-top:20px; font-family:monospace;">Press Alt+C+O to close</div>
+</div>
+
+<div id="scheduleModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <h3><i class="fas fa-clock"></i> קביעת זמני לימוד</h3>
+        <p id="scheduleTargetName" style="color:var(--primary); font-weight:bold;"></p>
+        <div class="form-group">
+            <label>ימים בשבוע:</label>
+            <div class="day-selector">
+                <label><input type="checkbox" class="day-checkbox" value="0"><span class="day-label">א</span></label>
+                <label><input type="checkbox" class="day-checkbox" value="1"><span class="day-label">ב</span></label>
+                <label><input type="checkbox" class="day-checkbox" value="2"><span class="day-label">ג</span></label>
+                <label><input type="checkbox" class="day-checkbox" value="3"><span class="day-label">ד</span></label>
+                <label><input type="checkbox" class="day-checkbox" value="4"><span class="day-label">ה</span></label>
+                <label><input type="checkbox" class="day-checkbox" value="5"><span class="day-label">ו</span></label>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>שעה:</label>
+            <input type="time" id="scheduleTime">
+        </div>
+        <button class="btn" onclick="saveSchedule()">שמור תזכורת</button>
+    </div>
+</div>
+
+<!-- מודאל הערות אישיות -->
+<div id="notesModal" class="modal-overlay" style="z-index: 2010;">
+    <div class="modal-content" style="width: 95%; max-width: 1200px; height: 90vh; padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <iframe id="notesFrame" style="width:100%; height:100%; border:none; border-radius: 16px;"></iframe>
+    </div>
+</div>
+
+<div id="adminNotesModal" class="modal-overlay" style="z-index: 2020;">
+    <div class="modal-content" style="max-width: 700px;"><span class="close-modal" onclick="closeModal()">&times;</span><h3 id="adminNotesTitle"></h3><div id="adminNotesContent" style="max-height: 60vh; overflow-y: auto; text-align: right;"></div>
+    </div>
+</div>
+
+<div id="userSelectionModal" class="modal-overlay" style="z-index: 2050;">
+    <div class="modal-content" style="max-width: 400px; background: #1e293b; color: white; border: 1px solid #334155;">
+        <span class="close-modal" onclick="document.getElementById('userSelectionModal').style.display='none'">&times;</span>
+        <h3>בחר משתמשים</h3>
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="userSelectSearch" class="admin-input" placeholder="חפש משתמש..." oninput="renderUserSelectionList()">
+        </div>
+        <div id="userSelectionList" class="user-select-list"></div>
+        <button class="btn" style="margin-top: 15px; background: #22c55e;" onclick="confirmUserSelection()">אישור</button>
+    </div>
+</div>
+
+<div id="followersModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">העוקבים שלי</h3>
+            <span class="close-modal" onclick="closeModal()" style="position: static;">&times;</span>
+        </div>
+        <div id="followersListContent" style="overflow-y: auto; flex: 1;"></div>
+    </div>
+</div>
+
+<div id="completionsModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">הסיומים שלי</h3>
+            <span class="close-modal" onclick="closeModal()" style="position: static;">&times;</span>
+        </div>
+        <div id="completionsListContent" style="overflow-y: auto; flex: 1;"></div>
+    </div>
+</div>
+
+<!-- מודאל תרומות ומנויים -->
+<div id="donationModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px; max-height: 90vh; padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="background: var(--card-bg); padding: 20px; border-bottom: 1px solid var(--border-color); position: relative; z-index: 10;">
+            <span class="close-modal" onclick="closeDonationModal()" style="top: 15px; left: 15px; position: absolute;">&times;</span>
+            <h3 style="color: var(--primary); margin: 0;">שותפות ותרומה</h3>
+        </div>
+        <div style="padding: 20px; overflow-y: auto; flex: 1;">
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">החזקת התורה - הזכות הגדולה ביותר!</p>
+        
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:15px; text-align:center; margin-bottom:15px;">
+            <h4 style="color:#16a34a; font-weight:bold; margin-bottom:5px;"> 📢 מחזקים את היכל בית המדרש!</h4>
+            <p style="font-size:0.9rem; color:#435e49;">יעד הקמפיין: 6,500 ש"ח לשדרוג "בית המדרש"</p>
+            <p style="font-size:0.85rem; color:#435e49; margin-bottom:10px;">אנחנו מזמינים אתכם להיות שותפים בקומה הבאה של האתר שלנו.</p>
+            <p style="font-size:0.85rem; color:#435e49; margin-bottom:5px;">מה יתווסף לאתר כשנגיע ליעד?</p>
+            <ul style="list-style:none; padding:0; text-align:right; font-size:0.8rem; color:#435e49;">
+                <li>🎥 לימוד חברותא בווידאו: מערכת שיחות וידאו מתקדמת (HD) שתאפשר ללמוד פנים אל פנים עם שותפים ללימוד מכל מקום בעולם, ישירות מתוך האתר.</li>
+                <hr style="border:0; border-top: 1px solid #bbf7d0; margin: 10px 0;">
+                <li>📂 שיתוף מדיה תורנית: אפשרות לשלוח תמונות של דפי גמרא, צילומי כתבי יד וסרטוני שיעורי תורה בתוך הצ'אט בקלות ובמהירות.</li>
+                <hr style="border:0; border-top: 1px solid #bbf7d0; margin: 10px 0;">
+                <li>🛡️ סביבה מוגנת ומפוקחת: הקמת מערכת ניהול ובקרה מתקדמת (Admin Dashboard) שתבטיח שכל התוכן המועבר באתר עומד בסטנדרטים של קדושת בית המדרש.</li>
+            </ul>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#166534; margin-top:10px; font-weight:bold;">
+                <span id="campaignProgressText">0%</span>
+            </div>
+            <div style="background:#dcfce7; height:12px; border-radius:6px; margin-bottom:5px; overflow:hidden;">
+                <div id="campaignProgressBar" style="background:linear-gradient(90deg, #22c55e, #16a34a); height:100%; width:60%; border-radius:6px; transition:width 0.5s;"></div>
+            </div>
+        </div>
+        <div class="donation-type-switch">
+            <div class="donation-type-option active" id="donTypeSub" onclick="setDonationType('sub')">מנוי חודשי (הוראת קבע)</div>
+            <div class="donation-type-option" id="donTypeOne" onclick="setDonationType('one')">תרומה חד פעמית</div>
+        </div>
+
+        <div id="subscriptionTiers" class="donation-grid">
+            <!-- Tiers will be injected here -->
+        </div>
+
+        <div style="background: var(--bg); padding: 10px; border-radius: 8px; margin-top: 10px;">
+            <label style="font-size: 0.9rem;">או סכום אחר לבחירתך (בש"ח):</label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="number" id="customDonationAmount" placeholder="0" style="margin: 0; text-align: center; font-size: 1.1rem; font-weight: bold; flex: 1;">
+                <span style="font-size: 1.2rem;">₪</span>
+            </div>
+            <div id="quickAmountChips" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; justify-content: center;">
+                <!-- Chips injected by JS -->
+            </div>
+            <div id="projectedTier" style="font-size: 0.8rem; color: var(--accent); margin-top: 5px; height: 20px;"></div>
+        </div>
+
+        <button class="btn" style="margin-top: 20px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); font-size: 1.1rem; padding: 15px;" onclick="processDonation()">
+            <span id="donateBtnText">הצטרף כמנוי</span>
+        </button>
+        </div>
+    </div>
+</div>
+</div> 
+
+<!-- Banned Overlay -->
+<div id="banned-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 10000; justify-content: center; align-items: center;">
+    <div class="auth-box" style="border: 2px solid var(--danger);">
+        <h2 style="color:var(--danger);"><i class="fas fa-ban"></i> חשבונך נחסם</h2>
+        <p>חשבונך נחסם על ידי מנהלי האתר.</p>
+        <p style="font-size:0.8rem; color:#64748b;">החסימה תקפה למכשיר זה ולחשבון המשתמש שלך.</p>
+        <hr style="margin:20px 0; border-color:#eee;">
+        <p style="font-size:0.9rem;">פנייה למנהל האתר:</p>
+        <textarea id="appealMsg" class="auth-input" placeholder="כתוב כאן את פנייתך..." style="height:80px;"></textarea>
+        <button class="btn" onclick="sendAppeal()">שלח פנייה</button>
+        <button class="btn-outline" onclick="checkBanLifted()" style="margin-top:10px; width:100%;">בדוק סטטוס חסימה</button>
+        <button class="btn-link" onclick="location.reload()" style="margin-top:10px;">חזרה למסך כניסה</button>
+    </div>
+</div>
+
+<!-- Report Modal -->
+<div id="reportModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeReportModal()">&times;</span>
+        <h3><i class="fas fa-exclamation-triangle" style="color:var(--danger);"></i> דיווח וחסימה</h3>
+        <p style="font-size:0.9rem; color:#666;">דיווח על משתמש יבטל אוטומטית את החברותא ויחסום אותו מצ'אט איתך.</p>
+        <input type="hidden" id="reportTargetEmail">
+        <textarea id="reportReason" class="auth-input" placeholder="תאר את סיבת הדיווח..." style="height:100px;"></textarea>
+        <button class="btn" style="background:var(--danger);" onclick="submitReport()">דווח וחסום</button>
+    </div>
+</div>
+
+<div id="auth-overlay">
+    <div class="auth-bg-decoration-1"></div>
+    <div class="auth-bg-decoration-2"></div>
+
+    <div class="auth-box">
+        <button class="auth-dark-mode-toggle" onclick="document.body.classList.toggle('dark-mode')">
+            <i class="fas fa-moon dark-icon"></i>
+            <i class="fas fa-sun light-icon"></i>
+        </button>
+
+        <div class="auth-header">
+            <div class="auth-header-icon">
+                <i class="fas fa-torah"></i>
+            </div>
+            <h1 class="auth-title">בית המדרש</h1>
+            <p class="auth-subtitle">ברוכים הבאים להיכל התורה</p>
+        </div>
+
+        <div class="auth-toggle">
+            <button class="auth-toggle-btn active" id="btn-login-mode" onclick="toggleAuthMode('login')">כניסה</button>
+            <button class="auth-toggle-btn" id="btn-signup-mode" onclick="toggleAuthMode('signup')">הרשמה</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" onsubmit="handleLogin(event)" class="auth-form">
+            <div class="auth-form-field">
+                <label for="emailInput">כתובת אימייל</label>
+                <input type="email" id="emailInput" class="auth-input" placeholder="name@example.com" required>
+            </div>
+            <div class="auth-form-field">
+                <label for="passInput">סיסמה</label>
+                <input type="password" id="passInput" class="auth-input" placeholder="••••••••" required>
+            </div>
+            <div class="auth-submit-container">
+                <button type="submit" class="btn auth-submit-btn">
+                    <span>כניסה</span>
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </div>
+            <div class="auth-link" onclick="handleForgotPassword()">שכחתי סיסמה</div>
+        </form>
+
+        <!-- Signup Form -->
+        <form id="signup-form" onsubmit="handleSignup(event)" class="auth-form" style="display:none;">
+            <div class="auth-scroll-area">
+                <div class="auth-form-field">
+                    <label for="regEmail">כתובת אימייל</label>
+                    <input type="email" id="regEmail" class="auth-input" placeholder="name@example.com" required>
+                </div>
+                <div class="auth-form-field">
+                    <label for="regPass">סיסמה (לפחות 6 תווים, אותיות ומספרים)</label>
+                    <input type="password" id="regPass" class="auth-input" placeholder="••••••••" required>
+                </div>
+                <div class="auth-form-field">
+                    <label for="regName">שם מלא</label>
+                    <input type="text" id="regName" class="auth-input" placeholder="ישראל ישראלי" required>
+                </div>
+                <div class="auth-form-field">
+                    <label for="regPhone">מספר טלפון</label>
+                    <input type="tel" id="regPhone" class="auth-input" placeholder="050-0000000">
+                </div>
+                <div class="auth-grid">
+                    <div class="auth-form-field">
+                        <label for="regAge">גיל</label>
+                        <input type="number" id="regAge" class="auth-input" placeholder="120">
+                    </div>
+                    <div class="auth-form-field">
+                        <label for="regCity">עיר מגורים</label>
+                        <input type="text" id="regCity" class="auth-input" placeholder="ירושלים" list="cities-list">
+                    </div>
+                </div>
+                <div class="auth-form-field">
+                    <label for="regAddress">כתובת (רחוב ומספר) - אופציונלי</label>
+                    <input type="text" id="regAddress" class="auth-input" placeholder="רחוב הטורים 1">
+                </div>
+                <div class="auth-checkbox-field">
+                    <input type="checkbox" id="regMarketing" checked>
+                    <label for="regMarketing">מאשר קבלת עדכונים ותוכן שיווקי למייל</label>
+                </div>
+                <div class="auth-section-divider">
+                    <h3 class="auth-section-title">שחזור סיסמה (חובה):</h3>
+                </div>
+                <div class="auth-form-field">
+                    <label for="regSecQ1">שאלה אישית (למשל: שם בית הספר היסודי)</label>
+                    <input type="text" id="regSecQ1" class="auth-input" required>
+                </div>
+                <div class="auth-form-field">
+                    <label for="regSecA1">תשובה לשאלה</label>
+                    <input type="text" id="regSecA1" class="auth-input" required>
+                </div>
+            </div>
+            <div class="auth-submit-container">
+                <button type="submit" class="btn auth-submit-btn">
+                    <span>צור חשבון</span>
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="userModal" class="modal-overlay">
+    <div class="modal-content">
+        <div style="position: relative; top: 0; background: var(--card-bg); z-index: 10; margin: -25px -25px 0 -25px; padding: 25px 25px 10px 25px; border-radius: 16px 16px 0 0;">
+            <button class="close-modal" onclick="closeModal()" style="position: absolute; top: 15px; left: 15px;"><i class="fas fa-times"></i></button>
+            <div style="font-size:3rem; color:#cbd5e1; margin-bottom:10px;"><i class="fas fa-user-circle"></i></div>
+        </div>
+        <h3 id="modalUserName" style="margin-bottom:5px;">שם משתמש</h3>
+        <p id="modalUserRank" style="color:var(--accent); font-weight:bold; margin:0;">דירוג: 0</p>
+        <div id="modalUserSubscription"></div>
+        <p id="modalUserAge" style="color:#64748b; font-size:0.9rem; margin:5px 0 0 0;"></p>
+        <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+        <div style="text-align:right;">
+            <p style="font-size:0.9rem; font-weight:bold;">לומד כעת:</p>
+            <ul id="modalUserBooks" style="padding-right:20px; font-size:0.9rem; color:#666;"></ul>
+        </div>
+        <div id="modalActions" style="margin-top:20px;"></div>
+    </div>
+</div>
+<header id="mainHeader" class="sticky-header glass">
+    <div class="header-container">
+        <!-- Logo and Title -->
+        <div class="header-group-left">
+            <div class="header-logo-wrapper" onclick="switchScreen('dashboard', document.querySelector('.nav-item'))" style="cursor:pointer;">
+                <span class="material-icons-round">menu_book</span>
+            </div>
+            <div class="header-title-wrapper">
+                <h1 id="headerTitle" class="header-main-title">בית המדרש</h1>
+                <p id="headerUserEmail" class="header-subtitle">לא מחובר</p>
+                 <div id="bot-mode-indicator" style="display:none;">
+                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:#ef4444;" onclick="logoutBot()">צא ממצב בוט</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle (Search) -->
+        <div class="header-group-middle">
+             <div class="header-search-container">
+                <div class="header-search-input-wrapper">
+                    <span class="material-icons-round">search</span>
+                    <input type="text" id="generalSearchInput" placeholder="חיפוש..." oninput="handleSearchInput()" onfocus="openSearchDropdown()">
+                    <span id="clearSearchBtn" class="material-icons-round clear-search-btn" onclick="clearSearch()" style="display: none;">close</span>
+                </div>
+                <div id="searchDropdown" class="search-dropdown">
+                    <div style="padding: 10px; border-bottom: 1px solid var(--border-color);">
+                        <label style="font-size: 0.8rem; color: #64748b;">חיפוש ב...</label>
+                        <div id="search-tags-container" style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px;"></div>
+                    </div>
+                    <div id="generalSearchResults" style="max-height: 400px; overflow-y: auto; padding: 10px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="header-group-right">
+            <button class="btn-donate-header" onclick="openDonationModal()"><i class="fas fa-crown"></i> מנוי / תרומה</button>
+            <button class="header-action-btn" onclick="openSuggestionModal()" title="הצעות לייעול">
+                 <span class="material-icons-round">lightbulb</span>
+            </button>
+            <div id="notif-container" class="header-action-btn" onclick="toggleNotifications()">
+                <span class="material-icons-round">notifications</span>
+                <span id="notif-badge" style="position: absolute; top: 0; right: 0; background: var(--danger); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7rem; display: none; align-items: center; justify-content: center; border: 2px solid var(--card-bg);">0</span>
+                <div id="notif-dropdown" style="display: none; position: absolute; top: 55px; left: 0; background: white; color: var(--text-main); width: 280px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; max-height: 350px; overflow-y: auto; text-align: right; border: 1px solid var(--border-color);">
+                    <p style="padding: 12px 15px; margin: 0; font-weight: bold; border-bottom: 1px solid var(--border-color);">הודעות</p>
+                    <div id="notif-list" style="font-size: 0.85rem;">
+                        <p style="color: #94a3b8; text-align: center; padding: 15px;">אין הודעות חדשות</p>
+                    </div>
+                </div>
+            </div>
+            <div class="profile-container" onclick="toggleProfileMenu()">
+                     <button class="profile-btn" id="headerProfileBtn"><i class="fas fa-user-circle" style="font-size: 1.5rem;"></i></button>
+                     <div id="profile-dropdown" class="profile-dropdown">
+                        <div id="profile-menu-achievements" class="profile-menu-item" onclick="toggleProfileMenu(); showAchievements();">
+                            <i class="fas fa-medal"></i> הישגים
+                        </div>
+                         <div class="profile-menu-item" onclick="toggleProfileMenu(); switchScreen('calendar');">
+                            <i class="fas fa-calendar-alt"></i> לוח זמנים
+                        </div>
+                        <div class="profile-menu-item" onclick="toggleProfileMenu(); switchScreen('profile');">
+                            <i class="fas fa-user-edit"></i> עריכת פרופיל
+                        </div>
+                        <div class="profile-menu-item" onclick="toggleProfileMenu(); showFollowersAndFollowing();">
+                            <i class="fas fa-users"></i> עוקבים ונעקבים
+                            <span id="followersCountBadge" style="margin-right: auto; font-size: 0.9rem; color: inherit; font-weight: normal;">0</span>
+                        </div>
+                        <div class="profile-menu-item" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span><i class="fas fa-moon"></i> מצב לילה</span>
+                            <label class="switch">
+                                <input type="checkbox" id="darkModeSwitch" onchange="toggleDarkMode(event)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="profile-menu-item" onclick="toggleProfileMenu(); openChat('admin@system', 'תמיכה');">
+                            <i class="fas fa-headset"></i> תמיכה / פנייה למנהל
+                        </div>
+                        <div class="profile-menu-item" onclick="logout()">
+                            <i class="fas fa-sign-out-alt"></i> התנתק
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </div>
+</header>
+<div class="container">
+
+    <div id="screen-dashboard" class="screen active dashboard-container">
+        <!-- Status Section -->
+        <div class="glass-panel">
+            <div class="bg-decoration-1"></div>
+            <div class="bg-decoration-2"></div>
+            
+            <div class="relative z-10" style="position: relative; z-index: 10;">
+                <div class="dashboard-header">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <i class="fas fa-chart-line" style="font-size:1.8rem; color:#EAB308;"></i>
+                        <h2 style="font-size:1.5rem; font-weight:bold; margin:0;">הסטטוס שלי</h2>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <p class="stat-value text-slate-900 dark:text-white" id="stat-books">0</p>
+                        <p class="stat-label">ספרים</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-value" style="color:#f59e0b;" id="stat-pages">0</p>
+                        <p class="stat-label">דפים/פרקים</p>
+                    </div>
+                    <div class="stat-card" onclick="showMyCompletions()" style="cursor:pointer;">
+                        <p class="stat-value" style="color:#10b981;" id="stat-completed">0</p>
+                        <p class="stat-label">סיומים</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="stat-value" style="color:#8b5cf6;" id="stat-rating">0</p>
+                        <p class="stat-label">רייטינג</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Active Study List -->
+        <div class="section-header">
+            <h2 style="font-size:1.25rem; font-weight:bold; display:flex; align-items:center; gap:0.5rem; margin:0;">
+                <i class="fas fa-book-open" style="color:#EAB308;"></i>
+                רשימת לימוד פעילה
+            </h2>
+        </div>
+
+        <div id="dailyTasksContainer" style="display:none; margin-bottom: 1.5rem;">
+             <div class="glass-panel" style="padding: 1.5rem; border-radius: 1.5rem; margin-bottom: 1rem;">
+                <h3 style="margin-top:0; font-size:1.1rem;"><i class="fas fa-calendar-check"></i> משימות יומיות</h3>
+                <div id="dailyTasksList"></div>
+            </div>
+        </div>
+
+        <div id="goalsList" style="display:flex; flex-direction:column; gap:1rem; margin-bottom: 1.5rem;"></div>
+
+        <button class="add-track-btn" onclick="switchScreen('add', document.querySelectorAll('.nav-item')[1])">
+            <i class="fas fa-plus-circle" style="font-size:1.875rem;"></i>
+            <span style="font-weight:bold;">הוסף מסלול לימוד חדש</span>
+        </button>
+    </div>
+
+    <div id="screen-add" class="screen">
+        <!-- תפריט בחירה ראשי -->
+        <div id="add-menu-view" class="add-screen-grid">
+            <div class="card add-menu-item" onclick="showAddSection('cycles')">
+                <i class="fas fa-sync-alt add-menu-icon"></i>
+                <div class="add-menu-title">מחזורי לימוד</div>
+                <div class="add-menu-desc">דף היומי, משנה יומית, רמב"ם ועוד</div>
+            </div>
+            <div class="card add-menu-item" onclick="showAddSection('quick')">
+                <i class="fas fa-bolt add-menu-icon" style="color: var(--accent);"></i>
+                <div class="add-menu-title">הוספה מהירה</div>
+                <div class="add-menu-desc">הוספת דפים/שעות ללא ספר מוגדר</div>
+            </div>
+            <div class="card add-menu-item" onclick="showAddSection('new')">
+                <i class="fas fa-plus-circle add-menu-icon" style="color: var(--success);"></i>
+                <div class="add-menu-title">לימוד חדש</div>
+                <div class="add-menu-desc">בחירת ספר מהספרייה או הגדרה אישית</div>
+            </div>
+        </div>
+
+        <!-- טופס מחזורי לימוד -->
+        <div id="add-section-cycles" style="display:none;" class="card">
+            <div class="back-btn-row"><button class="btn-back" onclick="showAddSection('menu')"><i class="fas fa-arrow-right"></i> חזרה לתפריט</button></div>
+            <h3><i class="fas fa-sync-alt"></i> הצטרפות למחזורי לימוד</h3>
+            <div class="cycles-grid">
+                <div class="cycle-btn" onclick="joinCycle('daf-yomi')"><i class="fas fa-book-open"></i> דף היומי</div>
+                <div class="cycle-btn" onclick="joinCycle('mishnah')"><i class="fas fa-layer-group"></i> משנה יומית</div>
+                <div class="cycle-btn" onclick="joinCycle('rambam')"><i class="fas fa-scroll"></i> רמב"ם יומי</div>
+                <div class="cycle-btn" onclick="joinCycle('halacha')"><i class="fas fa-gavel"></i> הלכה יומית</div>
+            </div>
+        </div>
+
+        <!-- טופס הוספה מהירה -->
+        <div id="add-section-quick" style="display:none;" class="card" style="border-top-color: var(--success);">
+            <div class="back-btn-row"><button class="btn-back" onclick="showAddSection('menu')"><i class="fas fa-arrow-right"></i> חזרה לתפריט</button></div>
+            <h2><i class="fas fa-bolt"></i> הוספה מהירה</h2>
+            <p style="font-size:0.85rem; color:#666;">להוספת כמות (כגון קנייה במכירה פומבית) שתיכנס לרשימת הלימוד:</p>
+            <div style="gap:10px; display:flex; flex-direction:column;">
+                <div style="display:flex; gap:10px;">
+                    <select id="quickType" style="flex:1;">
+                        <option value="דפי גמרא">דפי גמרא</option>
+                        <option value="משניות">משניות</option>
+                        <option value="פרקי תנ&quot;ך">פרקי תנ"ך</option>
+                        <option value="שעות לימוד">שעות לימוד</option>
+                    </select>
+                    <input type="number" id="quickAmount" placeholder="כמות" style="width:80px;">
+                </div>
+                
+                <!-- תוספת תכנון זמן להוספה מהירה -->
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                    <select id="quickPace" style="flex:1;" onchange="toggleQuickDate()">
+                        <option value="free">קצב חופשי</option>
+                        <option value="date">עד תאריך יעד</option>
+                    </select>
+                </div>
+                <div id="quickDateDiv" style="display:none;">
+                    <input type="date" id="quickDateInput" onchange="updateHebrewDateDisplay(this, 'quickHebrewDate')">
+                    <div id="quickHebrewDate" class="hebrew-date-display"></div>
+                </div>
+
+                <input type="text" id="quickDedication" placeholder="הקדשה (אופציונלי)">
+                <button class="btn" onclick="addQuickLog()">הוסף לרשימה שלי</button>
+            </div>
+        </div>
+
+        <!-- טופס לימוד חדש -->
+        <div id="add-section-new" style="display:none;" class="card">
+            <div class="back-btn-row"><button class="btn-back" onclick="showAddSection('menu')"><i class="fas fa-arrow-right"></i> חזרה לתפריט</button></div>
+            <h2><i class="fas fa-plus-circle"></i> לימוד חדש</h2>
+            
+            <div class="form-group">
+                <label>בחר ספר מהרשימה:</label>
+                <select id="bookSelect" class="auth-input"></select>
+            </div>
+
+            <div id="bookDetailsArea" style="display:none;">
+                <div class="form-group">
+                    <label>טווח לימוד:</label>
+                    <select id="bookScopeSelect" onchange="handleScopeChange()">
+                        <option value="full">כל הספר</option>
+                        <option value="chapter">פרק מסוים</option>
+                    </select>
+                </div>
+                <div id="chapterSelectDiv" class="form-group" style="display:none;">
+                    <label>בחר פרק:</label>
+                    <select id="chapterSelect" onchange="updateCalculatedUnits()"></select>
+                </div>
+                <div class="form-group">
+                     <label>כמות דפים/סעיפים (מוערך):</label>
+                     <input type="number" id="calculatedUnits">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>תכנון זמן:</label>
+                <select id="paceType" onchange="toggleDateInput()">
+                    <option value="free">קצב חופשי (ללא תאריך יעד)</option>
+                    <option value="date">עד תאריך יעד (המערכת תחשב כמות יומית)</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="dateInputDiv" style="display:none;">
+                <label>תאריך סיום מבוקש:</label>
+                <input type="date" id="targetDateInput" onchange="updateHebrewDateDisplay(this, 'targetHebrewDate')">
+                <div id="targetHebrewDate" class="hebrew-date-display"></div>
+            </div>
+
+            <div class="form-group">
+                <label>הקדשה (אופציונלי):</label>
+                <input type="text" id="dedicationInput" placeholder="לעילוי נשמת / לרפואת...">
+            </div>
+
+            <button class="btn" onclick="addNewGoal()">התחל לימוד</button>
+        </div>
+    </div>
+
+    <div id="screen-community" class="screen">
+        <div class="community-grid">
+            <div class="comm-col">
+                <h3><i class="fas fa-ad"></i> פרסומות</h3>
+                <!-- Ads will be loaded here from admin settings -->
+                <div id="ads-container" onclick="logAdClick()"></div>
+            </div>
+            <div class="comm-col">
+                <h3><i class="fas fa-chart-pie"></i> הנתונים שלי</h3>
+                <div style="flex:1; display:flex; align-items:center; justify-content:center; min-height: 250px;">
+                    <canvas id="userStatsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-chats" class="screen" style="height: calc(100vh - 67px);">
+        <div class="chat-screen-container">
+            <div class="chat-sidebar">
+                <div class="chat-tabs">
+                    <div class="chat-tabs-inner">
+                        <div class="chat-tab active" onclick="renderChatList('personal', this)">אישי</div>
+                        <div class="chat-tab" onclick="renderChatList('public', this)">ציבורי</div>
+                        <div class="chat-tab" onclick="renderChatList('other', this)">אחר</div>
+                    </div>
+                </div>
+                <div id="chat-list-container" style="flex: 1; overflow-y: auto;"></div>
+            </div>
+            <div class="chat-main-area" id="chat-main-area">
+                <div style="margin: auto; color: #94a3b8; text-align: center;">
+                    <i class="fas fa-comments" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <p>בחר צ'אט מהרשימה</p>
+                </div>
+            </div>
+            <div class="chat-thread-area" id="chat-thread-area">
+                <div class="chat-header" style="background: var(--bg); color: var(--text-main); border-bottom: 1px solid var(--border-color); padding: 10px;">
+                    <div style="font-weight:bold;">שרשור</div>
+                    <i class="fas fa-times" style="cursor:pointer;" onclick="closeThread()"></i>
+                </div>
+                <div id="thread-messages" style="flex:1; overflow-y:auto; padding:10px; background:#f8fafc;"></div>
+                <div class="chat-footer">
+                    <input type="text" id="thread-input" placeholder="הגב לשרשור..." onkeypress="if(event.key==='Enter') sendThreadMessage()">
+                    <button class="btn" style="width:auto;" onclick="sendThreadMessage()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-chavrutas" class="screen">
+        <div class="card">
+            <h2><i class="fas fa-users"></i> החברותות שלי</h2>
+            <div id="chavrutasList"></div>
+        </div>
+    </div>
+
+    <div id="screen-leaderboard" class="screen">
+        <div class="container" style="max-width: 800px; padding: 0;">
+            <div class="lb-header-section">
+                <div class="lb-icon-wrapper">
+                    <span class="material-icons-round">emoji_events</span>
+                </div>
+                <h1>לוח המובילים</h1>
+            </div>
+
+            <!-- Tabs -->
+            <div class="lb-tabs-wrapper">
+                <button id="sort-learned-btn" class="lb-tab-btn active" onclick="toggleLeaderboardSort('learned')">לפי לימוד</button>
+                <button id="sort-rating-btn" class="lb-tab-btn" onclick="toggleLeaderboardSort('rating')">לפי רייטינג</button>
+            </div>
+
+            <!-- Filters -->
+            <div class="lb-filters-wrapper">
+                <div class="lb-filter-box">
+                    <label>חפש לפי ספר</label>
+                    <div class="lb-input-container">
+                        <span class="material-icons-round">menu_book</span>
+                        <input type="text" id="leaderboardBookFilter" placeholder="בחר ספר לימוד..." oninput="renderLeaderboard()">
+                    </div>
+                </div>
+                <div class="lb-filter-box">
+                    <label>חפש לפי עיר</label>
+                    <div class="lb-input-container">
+                        <span class="material-icons-round">location_on</span>
+                        <input type="text" id="leaderboardCityFilter" placeholder="בחר עיר..." oninput="renderLeaderboard()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current User (Me) -->
+            <div id="leaderboardMeContainer"></div>
+
+            <!-- List -->
+            <div id="leaderboardList" class="lb-list-container"></div>
+        </div>
+    </div>
+
+    <div id="screen-archive" class="screen">
+    <div class="card" id="rank-progress-card">
+    <h3><i class="fas fa-medal"></i> ההתקדמות שלי בדרגות</h3>
+            <div style="display:flex; gap:10px; align-items: center;">
+                <input type="text" id="userSearchInput" placeholder="שם או אימייל..." onkeypress="if(event.key==='Enter') searchSpecificUser()" style="margin-bottom: 0;">
+                <button class="btn" style="width:auto; margin-bottom: 0;" onclick="searchSpecificUser()">חפש</button>
+            </div>
+            <div id="userSearchResults" style="margin-top:10px;"></div>
+        </div>
+        <div class="card">
+            <h2><i class="fas fa-archive"></i> ארכיון לימודים</h2>
+            <div id="archiveList"></div>
+        </div>
+    </div>
+    
+    <div id="screen-calendar" class="screen">
+        <div class="card">
+            <h2><i class="fas fa-calendar-alt"></i> לוח זמנים שבועי</h2>
+            <div id="calendarView"></div>
+        </div>
+    </div>
+
+    <div id="screen-profile" class="screen">
+        <div class="card">
+            <h2><i class="fas fa-user-edit"></i> הגדרות פרופיל</h2>
+            <div class="form-group">
+                <label>שם לתצוגה:</label>
+                <input type="text" id="profileName">
+            </div>
+            <div class="form-group">
+                <label>מספר טלפון (יוצג רק לאחר אישור חברותא):</label>
+                <input type="tel" id="profilePhone" placeholder="050-0000000">
+            </div>
+            <div class="form-group">
+                <label>עיר מגורים:</label>
+                <input type="text" id="profileCity" placeholder="עיר" list="cities-list">
+            </div>
+            <div class="form-group">
+                <label>גיל:</label>
+                <input type="number" id="profileAge" placeholder="הזן את גילך">
+            </div>
+            <div class="form-group">
+                <label>כתובת מלאה (אופציונלי):</label>
+                <input type="text" id="profileAddress" placeholder="רחוב ומספר">
+            </div>
+            <div class="form-group" style="display:flex; justify-content:space-between;">
+                <label>הישאר אנונימי בלוח:</label>
+                <label class="switch"><input type="checkbox" id="anonSwitch"><span class="slider"></span></label>
+            </div>
+            
+            <h3 style="margin-top:20px;"><i class="fas fa-lock"></i> אבטחה וסיסמה</h3>
+            <div class="form-group">
+                <label>שינוי סיסמה:</label>
+                <input type="password" id="profileNewPass" placeholder="הזן סיסמה חדשה (השאר ריק אם אין שינוי)">
+            </div>
+            
+            <div class="form-group">
+                <label>שאלת שחזור סיסמה:</label>
+                <input type="text" id="profileSecQ" placeholder="השאלה שלך">
+                <input type="text" id="profileSecA" placeholder="התשובה שלך">
+            </div>
+
+            <button class="btn" onclick="saveProfile()">שמור הגדרות</button>
+        </div>
+    </div>
+
+    <div id="screen-admin" class="screen">
+        <div class="card admin-card" style="border-top: 4px solid #f59e0b;">
+            <h2 style="margin-bottom: 25px; border-bottom: 1px solid #334155; padding-bottom: 15px;">
+                <i class="fas fa-user-shield" style="color: #f59e0b;"></i> מערכת ניהול
+            </h2>
+            
+            <div class="admin-layout">
+                <!-- תפריט צד -->
+                <div class="admin-sidebar">
+                    <button class="admin-tab-btn active" onclick="switchAdminTab('dashboard')"><i class="fas fa-chart-pie"></i> סקירה כללית</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('users')"><i class="fas fa-users-cog"></i> ניהול משתמשים</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('reports')"><i class="fas fa-flag"></i> דיווחים</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('inbox')"><i class="fas fa-inbox"></i> הודעות נכנסות <span id="adminInboxBadge" style="background:#ef4444; font-size:0.7rem; padding:2px 6px; border-radius:10px; display:none;">0</span></button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('donations')"><i class="fas fa-hand-holding-usd"></i> תורמים ומנויים</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('broadcast')"><i class="fas fa-bullhorn"></i> שידור הודעה</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('ads')"><i class="fas fa-ad"></i> ניהול פרסומות</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('suggestions')"><i class="fas fa-lightbulb"></i> הצעות ייעול</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('marketing')"><i class="fas fa-mail-bulk"></i> רשימת תפוצה</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('tools')"><i class="fas fa-tools"></i> כלים ובוטים</button>
+                    <button class="admin-tab-btn" style="color: #ef4444;" onclick="adminWipeAllData()"><i class="fas fa-radiation"></i> איפוס מערכת</button>
+                </div>
+
+                <!-- תוכן -->
+                <div class="admin-content">
+                    
+                    <!-- לשונית דשבורד -->
+                    <div id="admin-sec-dashboard" class="admin-section active">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                            <div style="background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #334155; text-align: center;">
+                                <div style="color: #94a3b8; font-size: 0.9rem; font-weight: bold;">משתמשים רשומים</div>
+                                <div style="font-size: 2.5rem; font-weight: 800; color: #fff; margin-top: 10px;" id="adminTotalUsers">0</div>
+                            </div>
+                            <div style="background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #334155; text-align: center;">
+                                <div style="color: #94a3b8; font-size: 0.9rem; font-weight: bold;">מחוברים כעת</div>
+                                <div style="font-size: 2.5rem; font-weight: 800; color: #22c55e; margin-top: 10px;" id="adminOnlineCount">0</div>
+                            </div>
+                        </div>
+                        <h3 style="color: #fff; border:none;">פעילות (24 שעות)</h3>
+                        <canvas id="adminActivityChart" style="max-height: 250px; width: 100%;"></canvas>
+                    </div>
+
+                    <!-- לשונית משתמשים -->
+                    <div id="admin-sec-users" class="admin-section">
+                        <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <div id="adminOnlineList" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+                        </div>
+                        <input type="text" id="adminSearch" class="admin-input" placeholder="🔍 חיפוש משתמש..." oninput="renderAdminUsersTable()" style="margin-bottom: 15px;">
+                        <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #334155;">
+                            <table class="admin-table" style="margin-top: 0;">
+                                <thead><tr style="background: #0f172a;"><th>שם</th><th>אימייל</th><th>עיר</th><th>מנוי</th><th>פעולות</th></tr></thead>
+                                <tbody id="adminUsersList"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- לשונית דיווחים -->
+                    <div id="admin-sec-reports" class="admin-section">
+                        <h3 style="color:#fff; border:none; margin-bottom:15px;">דיווחים על משתמשים</h3>
+                        <div id="adminReportsList"></div>
+                    </div>
+
+                    <!-- לשונית הודעות -->
+                    <div id="admin-sec-inbox" class="admin-section">
+                        <h3 style="color:#fff; border:none; margin-bottom:15px;">הודעות נכנסות (פניות למנהל)</h3>
+                        <div id="adminInboxList"></div>
+                    </div>
+
+                    <!-- לשונית תורמים -->
+                    <div id="admin-sec-donations" class="admin-section">
+                        <div id="adminDonationsList"></div>
+                    </div>
+
+                    <!-- לשונית שידור -->
+                    <div id="admin-sec-broadcast" class="admin-section">
+                        <h3 style="color:#fff; border:none;">שידור הודעת מערכת</h3>
+                        <p style="color:#94a3b8; font-size:0.9rem;">הודעה זו תקפוץ לכל המשתמשים המחוברים כעת.</p>
+                        <p style="color:#94a3b8; font-size:0.9rem;">הודעה זו תקפוץ לכל המשתמשים המחוברים כעת. ניתן להשתמש בתגיות HTML בסיסיות.</p>
+                        <div id="broadcast-toolbar" style="margin-bottom: 5px; background: #0f172a; padding: 5px; border-radius: 6px; display: flex; gap: 8px;">
+                            <button class="admin-btn" onclick="formatBroadcast('b')" style="font-weight:bold;">B</button>
+                            <button class="admin-btn" onclick="formatBroadcast('i')" style="font-style:italic;">I</button>
+                            <button class="admin-btn" onclick="formatBroadcast('u')" style="text-decoration:underline;">U</button>
+                        </div>
+                        <textarea id="adminSystemMsg" class="admin-input" placeholder="הקלד הודעה..." style="height: 120px; resize: vertical;"></textarea>
+                        <button class="admin-btn" style="background: #f59e0b; color: #000; font-weight: bold; padding: 10px 25px; font-size: 1rem; margin-top:15px;" onclick="sendSystemBroadcast()">שלח שידור</button>
+                    </div>
+
+                    <!-- לשונית פרסומות -->
+                    <div id="admin-sec-ads" class="admin-section">
+                        <h3 style="color:#fff; border:none;">ניהול פרסומות</h3>
+                        <p style="color:#94a3b8; font-size:0.9rem;">התוכן שיוזן כאן יוצג במסך ה"פרסומות" אצל המשתמשים. ניתן להשתמש ב-HTML.</p>
+                        <textarea id="adminAdsContent" class="admin-input" placeholder="הכנס כאן תוכן HTML עבור הפרסומות..." style="height: 200px; direction: ltr; text-align: left;"></textarea>
+                        <button class="admin-btn" style="background: #22c55e; color: #fff; font-size: 1rem; padding: 8px 15px; margin-top: 10px;" onclick="saveAds()">שמור פרסומות</button>
+                    </div>
+
+                    <!-- לשונית הצעות -->
+                    <div id="admin-sec-suggestions" class="admin-section">
+                        <h3 style="color:#fff; border:none;">הצעות ייעול מהמשתמשים</h3>
+                        <div id="adminSuggestionsList"></div>
+                    </div>
+
+                    <!-- לשונית שיווק -->
+                    <div id="admin-sec-marketing" class="admin-section">
+                        <h3 style="color:#fff; border:none;">רשימת תפוצה (משתמשים שאישרו דיוור)</h3>
+                        <button class="admin-btn" style="background: #3b82f6; color: #fff; padding: 10px 20px; margin-bottom: 15px;" onclick="downloadMarketingList()">📥 הורד רשימה כ-TXT</button>
+                        <div id="adminMarketingList"></div>
+                    </div>
+
+                    <!-- לשונית כלים ובוטים -->
+                    <div id="admin-sec-tools" class="admin-section">
+                        <h3 style="color:#fff; border:none;">🤖 ניהול בוטים</h3>
+                        <div style="display:flex; gap:10px; margin-bottom:15px;">
+                            <input type="text" id="newBotName" class="admin-input" placeholder="שם הבוט" style="margin:0;">
+                            <button class="admin-btn" style="background:#22c55e;" onclick="createBot()">צור בוט</button>
+                        </div>
+                        <div id="adminBotsList" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-bottom:30px;"></div>
+
+                        <h3 style="color:#fff; border:none; border-top:1px solid #334155; padding-top:20px;">🗑️ איפוס צ'אטים</h3>
+                        <div style="background:#0f172a; padding:15px; border-radius:8px; border:1px solid #334155;">
+                            <p style="color:#94a3b8; font-size:0.9rem; margin-top:0;">מחיקת הודעות בין תאריכים (לא ניתן לשחזור!)</p>
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                <div>
+                                    <label style="color:#cbd5e1;">משתמשים (לחץ לבחירה):</label>
+                                    <input type="text" id="resetChatEmail1" class="admin-input" placeholder="בחר משתמשים..." onclick="openUserSelection('resetChatEmail1')" readonly>
+                                </div>
+                                <div>
+                                    <!-- שדה זה הוסר לטובת בחירה מרובה בשדה הראשון, או שנשאיר אותו לטווח שני -->
+                                    <label style="color:#cbd5e1;">עד תאריך:</label>
+                                    <input type="date" id="resetChatEnd" class="admin-input">
+                                </div>
+                                <div>
+                                    <label style="color:#cbd5e1;">מתאריך:</label>
+                                    <input type="date" id="resetChatStart" class="admin-input">
+                                </div>
+                            </div>
+                            <button class="admin-btn" style="background:#ef4444; width:100%; margin-top:10px; padding:10px;" onclick="adminDeleteChatRange()">בצע מחיקה</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="floating-nav-container">
+    <div class="floating-nav glass">
+        <div class="floating-nav-item active" onclick="switchScreen('dashboard', this)">
+            <span class="material-icons-round">home</span>
+            <span class="floating-nav-label">בית</span>
+        </div>
+        <div class="floating-nav-item" onclick="switchScreen('chavrutas', this)">
+            <span class="material-icons-round">group</span>
+            <span class="floating-nav-label">חברותות</span>
+        </div>
+        <div class="floating-nav-item-center">
+            <button class="floating-nav-add-btn" onclick="switchScreen('add', this)">
+                <span class="material-icons-round">add</span>
+            </button>
+        </div>
+        <div class="floating-nav-item" onclick="switchScreen('leaderboard', this)">
+            <span class="material-icons-round">emoji_events</span>
+            <span class="floating-nav-label">מובילים</span>
+        </div>
+        <div class="floating-nav-item" onclick="switchScreen('chats', this)">
+            <span class="material-icons-round">forum</span>
+            <span class="floating-nav-label">צ'אטים</span>
+        </div>
+    </div>
+</div>
+
+<div class="h-32"></div> <!-- Spacer for bottom content -->
+
+<datalist id="cities-list">
+    <option value="ירושלים">
+    <option value="תל אביב-יפו">
+    <option value="חיפה">
+    <option value="ראשון לציון">
+    <option value="פתח תקווה">
+    <option value="אשדוד">
+    <option value="נתניה">
+    <option value="באר שבע">
+    <option value="בני ברק">
+    <option value="חולון">
+    <option value="רמת גן">
+    <option value="אשקלון">
+    <option value="רחובות">
+    <option value="בת ים">
+    <option value="בית שמש">
+    <option value="כפר סבא">
+    <option value="הרצליה">
+    <option value="חדרה">
+    <option value="מודיעין-מכבים-רעות">
+    <option value="לוד">
+    <option value="רעננה">
+    <option value="רמלה">
+    <option value="נצרת">
+    <option value="אלעד">
+    <option value="מודיעין עילית">
+    <option value="ביתר עילית">
+    <option value="קרית גת">
+    <option value="נהריה">
+</datalist>
+<div id="toast-container" class="toast-container"></div>
+</body>
+</html>
