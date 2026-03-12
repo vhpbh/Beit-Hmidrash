@@ -1,0 +1,183 @@
+table_name,column_name,data_type,is_nullable,column_default,is_primary_key,foreign_table,foreign_column,constraint_type
+ad_stats,id,bigint,NO,null,true,null,null,PRIMARY KEY
+ad_stats,event_type,text,NO,null,false,null,null,null
+ad_stats,ad_id,text,YES,null,false,null,null,null
+ad_stats,created_at,timestamp with time zone,YES,now(),false,null,null,null
+book_categories,id,integer,NO,nextval('book_categories_id_seq'::regclass),true,null,null,PRIMARY KEY
+book_categories,name,text,NO,null,false,null,null,UNIQUE
+book_categories,order,integer,YES,0,false,null,null,null
+book_chat_reactions,id,bigint,NO,null,true,null,null,PRIMARY KEY
+book_chat_reactions,message_id,bigint,NO,null,false,null,null,UNIQUE
+book_chat_reactions,message_id,bigint,NO,null,false,book_chats,id,FOREIGN KEY
+book_chat_reactions,user_email,text,NO,null,false,users,email,FOREIGN KEY
+book_chat_reactions,user_email,text,NO,null,false,null,null,UNIQUE
+book_chat_reactions,reaction,text,NO,null,false,null,null,null
+book_chats,id,bigint,NO,null,true,null,null,PRIMARY KEY
+book_chats,created_at,timestamp with time zone,NO,now(),false,null,null,null
+book_chats,book_name,text,NO,null,false,null,null,null
+book_chats,sender_email,text,YES,null,false,users,email,FOREIGN KEY
+book_chats,message,text,YES,null,false,null,null,null
+chat_messages,id,bigint,NO,null,true,null,null,PRIMARY KEY
+chat_messages,created_at,timestamp with time zone,NO,"timezone('utc'::text, now())",false,null,null,null
+chat_messages,sender_email,text,YES,null,false,null,null,null
+chat_messages,receiver_email,text,YES,null,false,null,null,null
+chat_messages,message,text,YES,null,false,null,null,null
+chat_messages,is_read,boolean,YES,false,false,null,null,null
+chat_messages,is_html,boolean,YES,false,false,null,null,null
+chavruta_requests,id,uuid,NO,gen_random_uuid(),true,null,null,PRIMARY KEY
+chavruta_requests,sender_email,text,YES,null,false,null,null,null
+chavruta_requests,receiver_email,text,YES,null,false,null,null,null
+chavruta_requests,book_name,text,YES,null,false,null,null,null
+chavruta_requests,status,text,YES,'pending'::text,false,null,null,null
+chavruta_requests,created_at,timestamp with time zone,YES,now(),false,null,null,null
+cookie_consents,id,bigint,NO,null,true,null,null,PRIMARY KEY
+cookie_consents,user_email,text,YES,null,false,null,null,null
+cookie_consents,ip_address,text,YES,null,false,null,null,null
+cookie_consents,user_agent,text,YES,null,false,null,null,null
+cookie_consents,accepted_at,timestamp with time zone,YES,now(),false,null,null,null
+lottery_entries,id,integer,NO,nextval('lottery_entries_id_seq'::regclass),true,null,null,PRIMARY KEY
+lottery_entries,lottery_id,integer,YES,null,false,lottery_items,id,FOREIGN KEY
+lottery_entries,lottery_id,integer,YES,null,false,null,null,UNIQUE
+lottery_entries,user_email,text,YES,null,false,users,email,FOREIGN KEY
+lottery_entries,user_email,text,YES,null,false,null,null,UNIQUE
+lottery_entries,created_at,timestamp with time zone,YES,now(),false,null,null,null
+lottery_items,id,integer,NO,nextval('lottery_items_id_seq'::regclass),true,null,null,PRIMARY KEY
+lottery_items,name,text,NO,null,false,null,null,null
+lottery_items,description,text,YES,null,false,null,null,null
+lottery_items,image_url,text,YES,null,false,null,null,null
+lottery_items,end_date,timestamp with time zone,YES,null,false,null,null,null
+lottery_items,winner_email,text,YES,null,false,null,null,null
+lottery_items,is_active,boolean,YES,true,false,null,null,null
+lottery_items,created_at,timestamp with time zone,YES,now(),false,null,null,null
+managed_books,id,integer,NO,nextval('managed_books_id_seq'::regclass),true,null,null,PRIMARY KEY
+managed_books,category_id,integer,YES,null,false,book_categories,id,FOREIGN KEY
+managed_books,category_id,integer,YES,null,false,null,null,UNIQUE
+managed_books,name,text,NO,null,false,null,null,UNIQUE
+managed_books,total_units,integer,NO,null,false,null,null,null
+managed_books,chapters,jsonb,YES,null,false,null,null,null
+message_reactions,id,bigint,NO,null,true,null,null,PRIMARY KEY
+message_reactions,message_id,bigint,YES,null,false,chat_messages,id,FOREIGN KEY
+message_reactions,message_id,bigint,YES,null,false,null,null,UNIQUE
+message_reactions,user_email,text,NO,null,false,null,null,UNIQUE
+message_reactions,reaction_type,text,NO,null,false,null,null,null
+message_reactions,created_at,timestamp with time zone,YES,now(),false,null,null,null
+note_collaborators,note_id,uuid,NO,null,true,notes,id,FOREIGN KEY
+note_collaborators,note_id,uuid,NO,null,true,null,null,PRIMARY KEY
+note_collaborators,user_email,text,NO,null,true,null,null,PRIMARY KEY
+note_collaborators,user_email,text,NO,null,true,users,email,FOREIGN KEY
+note_collaborators,permission_level,text,NO,null,false,null,null,null
+note_permissions,id,bigint,NO,null,true,null,null,PRIMARY KEY
+note_permissions,goal_id,text,NO,null,false,null,null,UNIQUE
+note_permissions,owner_email,text,NO,null,false,null,null,null
+note_permissions,shared_with_email,text,NO,null,false,null,null,UNIQUE
+note_permissions,permission_level,text,NO,'view'::text,false,null,null,null
+note_permissions,created_at,timestamp with time zone,NO,"timezone('utc'::text, now())",false,null,null,null
+notes,id,uuid,NO,gen_random_uuid(),true,null,null,PRIMARY KEY
+notes,created_at,timestamp with time zone,NO,now(),false,null,null,null
+notes,last_updated,timestamp with time zone,NO,now(),false,null,null,null
+notes,title,text,NO,null,false,null,null,null
+notes,content,jsonb,YES,null,false,null,null,null
+notes,owner_email,text,NO,null,false,users,email,FOREIGN KEY
+notes,goal_id,text,YES,null,false,null,null,null
+rating_ranks,rank_name,text,NO,null,true,null,null,PRIMARY KEY
+rating_ranks,min_points,integer,NO,null,false,null,null,null
+settings,key,text,NO,null,true,null,null,PRIMARY KEY
+settings,value,text,YES,null,false,null,null,null
+settings,updated_at,timestamp with time zone,YES,now(),false,null,null,null
+shared_notes,id,bigint,NO,null,true,null,null,PRIMARY KEY
+shared_notes,note_id,text,YES,null,false,null,null,null
+shared_notes,owner_email,text,YES,null,false,null,null,null
+shared_notes,shared_with_email,text,YES,null,false,null,null,null
+shared_notes,content,text,YES,null,false,null,null,null
+shared_notes,can_edit,boolean,YES,false,false,null,null,null
+shared_notes,created_at,timestamp with time zone,YES,now(),false,null,null,null
+shared_notes,updated_at,timestamp with time zone,YES,now(),false,null,null,null
+shop_items,id,integer,NO,nextval('shop_items_id_seq'::regclass),true,null,null,PRIMARY KEY
+shop_items,name,text,NO,null,false,null,null,null
+shop_items,description,text,YES,null,false,null,null,null
+shop_items,item_type,text,NO,null,false,null,null,null
+shop_items,price,integer,NO,null,false,null,null,null
+shop_items,item_data,jsonb,YES,null,false,null,null,null
+shop_items,is_active,boolean,YES,true,false,null,null,null
+shop_items,created_at,timestamp with time zone,YES,now(),false,null,null,null
+site_visits,id,bigint,NO,null,true,null,null,PRIMARY KEY
+site_visits,visitor_id,text,NO,null,false,null,null,null
+site_visits,user_email,text,YES,null,false,null,null,null
+site_visits,visited_at,timestamp with time zone,YES,now(),false,null,null,null
+siyum_board,id,bigint,NO,null,true,null,null,PRIMARY KEY
+siyum_board,user_email,text,NO,null,false,users,email,FOREIGN KEY
+siyum_board,book_name,text,NO,null,false,null,null,null
+siyum_board,completed_at,timestamp with time zone,NO,now(),false,null,null,null
+siyum_reactions,id,bigint,NO,null,true,null,null,PRIMARY KEY
+siyum_reactions,siyum_id,bigint,NO,null,false,siyum_board,id,FOREIGN KEY
+siyum_reactions,siyum_id,bigint,NO,null,false,null,null,UNIQUE
+siyum_reactions,reactor_email,text,NO,null,false,null,null,UNIQUE
+siyum_reactions,reactor_email,text,NO,null,false,users,email,FOREIGN KEY
+siyum_reactions,created_at,timestamp with time zone,NO,now(),false,null,null,null
+store_items,id,text,NO,null,true,null,null,PRIMARY KEY
+store_items,item_type,text,NO,null,false,null,null,null
+store_items,name,text,NO,null,false,null,null,null
+store_items,description,text,YES,null,false,null,null,null
+store_items,price,integer,NO,null,false,null,null,null
+store_items,preview_url,text,YES,null,false,null,null,null
+suggestions,id,bigint,NO,null,true,null,null,PRIMARY KEY
+suggestions,user_email,text,NO,null,false,null,null,null
+suggestions,content,text,NO,null,false,null,null,null
+suggestions,created_at,timestamp with time zone,YES,now(),false,null,null,null
+system_announcements,id,bigint,NO,null,true,null,null,PRIMARY KEY
+system_announcements,message,text,NO,null,false,null,null,null
+system_announcements,created_at,timestamp with time zone,YES,now(),false,null,null,null
+user_consents,id,bigint,NO,null,true,null,null,PRIMARY KEY
+user_consents,user_ip,text,YES,null,false,null,null,null
+user_consents,user_agent,text,YES,null,false,null,null,null
+user_consents,consented_at,timestamp with time zone,YES,"timezone('utc'::text, now())",false,null,null,null
+user_followers,id,bigint,NO,null,true,null,null,PRIMARY KEY
+user_followers,follower_email,text,NO,null,false,null,null,UNIQUE
+user_followers,following_email,text,NO,null,false,null,null,UNIQUE
+user_followers,created_at,timestamp with time zone,NO,"timezone('utc'::text, now())",false,null,null,null
+user_goals,id,text,NO,null,true,null,null,PRIMARY KEY
+user_goals,user_email,text,YES,null,false,users,email,FOREIGN KEY
+user_goals,book_name,text,YES,null,false,null,null,null
+user_goals,total_units,integer,YES,null,false,null,null,null
+user_goals,current_unit,integer,YES,0,false,null,null,null
+user_goals,status,text,YES,'active'::text,false,null,null,null
+user_goals,target_date,text,YES,null,false,null,null,null
+user_goals,dedication,text,YES,null,false,null,null,null
+user_goals,created_at,timestamp with time zone,YES,now(),false,null,null,null
+user_goals,notes,jsonb,YES,'[]'::jsonb,false,null,null,null
+user_goals,notes_shared_with,text,YES,null,false,null,null,null
+user_goals,collaborators,jsonb,YES,'[]'::jsonb,false,null,null,null
+user_goals,completed_date,timestamp with time zone,YES,null,false,null,null,null
+user_inventory,id,bigint,NO,null,true,null,null,PRIMARY KEY
+user_inventory,user_email,text,NO,null,false,users,email,FOREIGN KEY
+user_inventory,user_email,text,NO,null,false,null,null,UNIQUE
+user_inventory,item_id,text,NO,null,false,store_items,id,FOREIGN KEY
+user_inventory,item_id,text,NO,null,false,null,null,UNIQUE
+user_inventory,acquired_at,timestamp with time zone,NO,now(),false,null,null,null
+user_reports,id,bigint,NO,null,true,null,null,PRIMARY KEY
+user_reports,created_at,timestamp with time zone,NO,"timezone('utc'::text, now())",false,null,null,null
+user_reports,reporter_email,text,NO,null,false,null,null,null
+user_reports,reported_email,text,NO,null,false,null,null,null
+user_reports,reason,text,YES,null,false,null,null,null
+users,email,text,NO,null,true,null,null,PRIMARY KEY
+users,email,text,NO,null,true,null,null,PRIMARY KEY
+users,display_name,text,YES,null,false,null,null,null
+users,city,text,YES,null,false,null,null,null
+users,phone,text,YES,null,false,null,null,UNIQUE
+users,is_anonymous,boolean,YES,false,false,null,null,null
+users,last_seen,timestamp with time zone,YES,now(),false,null,null,null
+users,password,text,YES,null,false,null,null,null
+users,subscription,jsonb,YES,"'{""name"": """", ""level"": 0, ""amount"": 0}'::jsonb",false,null,null,null
+users,address,text,YES,null,false,null,null,null
+users,security_questions,jsonb,YES,null,false,null,null,null
+users,is_banned,boolean,YES,false,false,null,null,null
+users,rating_points,integer,YES,0,false,null,null,null
+users,reward_points,integer,YES,0,false,null,null,null
+users,marketing_consent,boolean,YES,false,false,null,null,null
+users,is_bot,boolean,YES,false,false,null,null,null
+users,age,integer,YES,null,false,null,null,null
+users,chat_rating,integer,YES,0,false,null,null,null
+users,avatar_color,text,YES,null,false,null,null,null
+users,initials,text,YES,null,false,null,null,null
+users,avatar_initials,character varying,YES,null,false,null,null,null
+users,is_admin,boolean,YES,false,false,null,null,null

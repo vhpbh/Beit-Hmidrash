@@ -1,5 +1,7 @@
 const SUPABASE_URL = 'https://dsaxhbmyvjtdmcbxnnlj.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_TjOpGB31wmbuVN8FZXDH_Q_tLmC10_7';
+// החזרתי את המפתח המקורי, אך שים לב: מפתח תקין של Supabase מתחיל בדרך כלל ב-eyJ.
+// אם אתה מקבל שגיאות 401, עליך להעתיק את המפתח הנכון מ: Supabase Dashboard -> Project Settings -> API -> anon public
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzYXhoYm15dmp0ZG1jYnhubmxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2ODI1NTcsImV4cCI6MjA4MjI1ODU1N30.F31n85Lm2e5-mDC83TlstJY9Pya3GOAyIRilDcL_5Hc';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 setInterval(syncGlobalData, 10000);
 setInterval(sendHeartbeat, 60000); // עדכון סטטוס מחובר כל דקה
@@ -26,7 +28,7 @@ async function syncGlobalData() {
             .select('*');
         if (usersError) {
             console.error("Supabase Users Error:", usersError);
-            if (usersError.code === "PGRST301" || usersError.code === "401") await customAlert("שגיאת הרשאה: בדוק את מפתח ה-Supabase שלך.");
+            if (usersError.code === "PGRST301" || usersError.code === "401" || (usersError.message && usersError.message.includes("JWT"))) await customAlert("שגיאת התחברות (401):<br>מפתח ה-API בקובץ api.js אינו תקין.<br>יש להעתיק את מפתח ה-anon public מלוח הבקרה של Supabase.", true);
             throw usersError;
         }
 
@@ -101,7 +103,7 @@ async function syncGlobalData() {
                         }
                         chavrutaConnections.push({ email: partnerEmail, book: r.book_name, name: pName });
                     } else if (r.status === 'pending' && r.sender_email === currentUser.email) {
-                        pendingSentRequests.push({ receiver: r.receiver_email, book: r.book_name });
+                        pendingSentRequests.push({ receiver: r.receiver_email, book: r.book_name, created_at: r.created_at });
                     }
                 });
                 localStorage.setItem('torahApp_chavrutas', JSON.stringify(chavrutaConnections));
@@ -127,10 +129,13 @@ async function syncGlobalData() {
                             // לא נעשה כלום כאן כדי לא להציף
                         }
                         if (msg.sender_email === 'admin@system' && msg.message.includes('הודעת מערכת')) return; // דילוג על הודעות מערכת כפולות
-                        // פתיחת צ'אט ממוזער בצד שמאל במקום התראה רגילה
-                        const senderUser = globalUsersData.find(u => u.email === msg.sender_email);
-                        const senderName = senderUser ? senderUser.name : msg.sender_email;
-                        openChat(msg.sender_email, senderName, true);
+                        // The user reported that chat windows open unexpectedly.
+                        // This was happening here, where any unread message would trigger a minimized chat window.
+                        // The realtime handler already provides a notification. We are disabling this feature
+                        // to prevent intrusive windows from opening automatically.
+                        // const senderUser = globalUsersData.find(u => u.email === msg.sender_email);
+                        // const senderName = senderUser ? senderUser.name : msg.sender_email;
+                        // openChat(msg.sender_email, senderName, true);
                     }
                 });
             }
@@ -167,7 +172,8 @@ async function syncGlobalData() {
                     password: user.password || '***', // הוספת שדה סיסמה אם קיים
                     reward_points: user.reward_points || 0,
                     chat_rating: user.chat_rating || 0, // דירוג חברתי
-                    isBot: user.is_bot || false
+                    isBot: user.is_bot || false,
+                    is_banned: user.is_banned || false
                 };
             });
 

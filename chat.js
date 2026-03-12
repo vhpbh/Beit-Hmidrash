@@ -86,6 +86,7 @@ function openBookChat(bookName) {
 }
 
 function openChat(partnerEmail, partnerName, startMinimized = false, forceFloating = false) {
+    if (!requireAuth()) return;
     // Don't lowercase book IDs as they might contain case sensitive parts or spaces we want to preserve visually, though ID must be safe.
     // For simplicity, we keep email lowercase, but book ID we handle carefully.
     const isBook = partnerEmail.startsWith('book:');
@@ -121,36 +122,41 @@ function openChat(partnerEmail, partnerName, startMinimized = false, forceFloati
 
     const isBlocked = blockedUsers.includes(partnerEmail);
     const blockClass = isBlocked ? 'blocked' : '';
-    const blockIconColor = isBlocked ? '#ef4444' : '#fff';
+    const blockIconColor = isBlocked ? '#ef4444' : '#ef4444';
+    const banIconClass = isBlocked ? 'text-red-500' : 'text-red-400'; // Red by default for visibility
     const isSystem = partnerEmail === 'admin@system';
-    const banStyle = (isSystem || isBook) ? 'display:none;' : `color:${blockIconColor};`;
+    const banStyle = (isSystem || isBook) ? 'display:none;' : `color:${blockIconColor}; cursor:pointer;`;
 
     const chatHtml = `
-        <div class="chat-window ${blockClass}" id="chat-window-${partnerEmail}">
-            <div class="chat-header" onclick="toggleChatWindow('${partnerEmail}')">
-                <div style="display:flex; align-items:center; gap:5px;">
+        <div class="chat-window ${blockClass} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl overflow-hidden flex flex-col" id="chat-window-${partnerEmail}">
+            <div class="chat-header bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 flex justify-between items-center cursor-pointer" onclick="toggleChatWindow('${partnerEmail}')">
+                <div class="flex items-center gap-3">
                     ${isBook ? '<i class="fas fa-book"></i>' : `<span class="online-dot" id="online-${partnerEmail}"></span>`}
-                    <span>${partnerName}</span>
+                    <span class="font-bold text-slate-800 dark:text-white">${partnerName}</span>
                 </div>
-                <div style="font-size:1rem; display:flex; gap:12px; align-items:center;">
-                    <i class="fas fa-ban" onclick="event.stopPropagation(); openReportModal('${partnerEmail}')" title="דיווח וחסימה" style="${banStyle}" id="block-btn-${partnerEmail}"></i>
-                    <i class="fas fa-minus" onclick="event.stopPropagation(); toggleChatWindow('${partnerEmail}')" title="מזער"></i>
-                    <i class="fas fa-times" onclick="event.stopPropagation(); closeChatWindow('${partnerEmail}')" style="margin-right:8px;"></i>
+                <div class="flex items-center gap-3 text-slate-400">
+                    <i class="fas fa-ban ${banIconClass} hover:text-red-600 transition-colors" onclick="event.stopPropagation(); openReportModal('${partnerEmail}')" title="דיווח וחסימה" style="${banStyle}" id="block-btn-${partnerEmail}"></i>
+                    <i class="fas fa-minus hover:text-slate-600 transition-colors" onclick="event.stopPropagation(); toggleChatWindow('${partnerEmail}')" title="מזער"></i>
+                    <i class="fas fa-expand hover:text-slate-600 transition-colors" onclick="event.stopPropagation(); expandChatToScreen('${partnerEmail}', '${partnerName.replace(/'/g, "\\'")}')" title="פתח במסך מלא"></i>
+                    <i class="fas fa-times hover:text-slate-600 transition-colors" onclick="event.stopPropagation(); closeChatWindow('${partnerEmail}')"></i>
                 </div>
             </div>
             <div class="chat-body">
-                <div class="chat-messages-area" id="msgs-${partnerEmail}"></div>
+                <div class="chat-messages-area flex flex-col" id="msgs-${partnerEmail}">
+                    <div class="chat-loading-indicator" style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-circle-notch fa-spin"></i> טוען צ'אט...</div>
+                </div>
                 <div class="typing-indicator-box" id="typing-${partnerEmail}"></div>
-                <div id="reply-preview-${partnerEmail}" style="display:none; background:#f1f5f9; padding:5px; border-left:3px solid var(--accent); font-size:0.8rem; display:flex; justify-content:space-between; align-items:center;"></div>
-                <div class="chat-footer">
-                    <input type="text" id="input-${partnerEmail}" placeholder="הודעה..." 
+                <footer class="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                    <div class="max-w-5xl mx-auto relative flex items-center gap-3">
+                        <input type="text" id="input-${partnerEmail}" class="w-full h-12 bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-5 text-sm focus:ring-2 focus:ring-blue-500/50 dark:text-white dark:placeholder-slate-500" placeholder="הקלד הודעה..." 
                         oninput="handleTyping('${partnerEmail}')" 
                         onkeyup="saveChatDraft('${partnerEmail}', this.value)"
                         onkeypress="if(event.key === 'Enter') sendMessage('${partnerEmail}')">
-                    <button class="btn" style="width:auto; padding:0 10px;" onclick="sendMessage('${partnerEmail}')">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
+                        <button class="w-12 h-12 flex items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-slate-800 transition-transform active:scale-95 shadow-md shrink-0" onclick="sendMessage('${partnerEmail}')">
+                            <span class="material-icons-round transform -scale-x-100">send</span>
+                        </button>
+                    </div>
+                </footer>
             </div>
         </div>
     `;
@@ -185,19 +191,41 @@ function openChat(partnerEmail, partnerName, startMinimized = false, forceFloati
     startChatPolling();
 }
 
+function expandChatToScreen(email, name) {
+    // Close the popup
+    closeChatWindow(email);
+    // Switch to chats screen
+    switchScreen('chats');
+    // Load the specific chat
+    loadChatIntoMainArea(email, name);
+}
+
 let currentChatFilter = 'personal';
 
 async function renderChatList(filter, tabEl, isBackgroundUpdate = false) {
     currentChatFilter = filter;
-    if (tabEl) {
-        document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
-        tabEl.classList.add('active');
-        lastChatListHTML = ''; // Reset cache on tab switch
+    const cacheKey = `chatListCache_${filter}`;
 
+    // Handle tab UI
+    document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
+    if (tabEl && tabEl.classList.contains('chat-tab')) {
+        tabEl.classList.add('active');
+    }
+    // If it's archive, no tab is active, and we can show a title
+    if (filter === 'archive') {
+        const mainArea = document.getElementById('chat-main-area');
+        mainArea.innerHTML = `<div style="margin: auto; color: #94a3b8; text-align: center;"><i class="fas fa-archive" style="font-size: 3rem; opacity: 0.3;"></i><p>ארכיון צ'אטים</p></div>`;
     }
 
     const container = document.getElementById('chat-list-container');
-    if (!isBackgroundUpdate) container.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8;">טוען...</div>';
+    if (!isBackgroundUpdate) {
+        const cachedHtml = localStorage.getItem(cacheKey);
+        if (cachedHtml) {
+            container.innerHTML = cachedHtml;
+        } else {
+            container.innerHTML = '<div class="text-center p-5 text-slate-400">טוען...</div>';
+        }
+    }
 
     // Fetch all messages involving me to find unique partners
     const { data } = await supabaseClient.from('chat_messages')
@@ -206,7 +234,9 @@ async function renderChatList(filter, tabEl, isBackgroundUpdate = false) {
         .order('created_at', { ascending: false });
 
     if (!data) {
-        if (!isBackgroundUpdate) container.innerHTML = '<div style="text-align:center; padding:20px;">אין צ\'אטים.</div>';
+        const emptyHtml = '<div class="text-center p-5 text-slate-500">אין צ\'אטים.</div>';
+        container.innerHTML = emptyHtml;
+        localStorage.setItem(cacheKey, emptyHtml);
         return;
     }
 
@@ -220,17 +250,19 @@ async function renderChatList(filter, tabEl, isBackgroundUpdate = false) {
         if (!partners.has(partner)) {
             partners.add(partner);
 
-            let category = 'personal';
-            if (partner.startsWith('book:')) category = 'public';
-            else if (partner === 'admin@system' || partner === 'updates@system') category = 'other';
+            let category;
+            if (partner.startsWith('book:')) {
+                category = 'public';
+            } else if (partner === 'admin@system' || partner === 'updates@system') {
+                category = 'other';
+            } else if (approvedPartners.has(partner)) {
+                category = 'personal';
+            } else {
+                // This is a chat with a user who is not a book, not system, and not an approved partner.
+                category = 'archive';
+            }
 
             if (category === filter) {
-                // סינון צ'אטים אישיים: הצג רק אם הוא חברותא מאושרת
-                if (category === 'personal' && !approvedPartners.has(partner)) {
-                    // אם הצ'אט לא עם חברותא פעילה, דלג עליו
-                    return;
-                }
-
                 chats.push({
                     email: partner,
                     lastMsg: msg.message,
@@ -258,16 +290,31 @@ async function renderChatList(filter, tabEl, isBackgroundUpdate = false) {
         `;
     }
 
+    // Ensure system chats are always present in 'other'
+    if (filter === 'other') {
+        const systemChats = ['admin@system', 'updates@system'];
+        systemChats.forEach(sysEmail => {
+            if (!chats.some(c => c.email === sysEmail)) {
+                chats.push({
+                    email: sysEmail,
+                    lastMsg: sysEmail === 'admin@system' ? 'הודעות מערכת והנהלה' : 'עדכונים שוטפים',
+                    time: new Date().toISOString(),
+                    unread: false
+                });
+            }
+        });
+    }
+
     if (chats.length === 0) {
-        newHTML = '<div style="text-align:center; padding:20px; color:#94a3b8;">אין צ\'אטים בקטגוריה זו.</div>';
+        newHTML = '<div class="text-center p-5 text-slate-400">אין צ\'אטים בקטגוריה זו.</div>';
     } else {
 
         chats.forEach(chat => {
-            const user = globalUsersData.find(u => u.email === chat.email);
+            const user = globalUsersData.find(u => u.email && chat.email && u.email.toLowerCase() === chat.email.toLowerCase());
             const name = user ? user.name : (chat.email.startsWith('book:') ? chat.email.replace('book:', '') : (chat.email === 'admin@system' ? 'הנהלה' : (chat.email === 'updates@system' ? 'עדכונים מהנעקבים' : chat.email.split('@')[0])));
 
             const isOnline = user && user.lastSeen && (new Date() - new Date(user.lastSeen) < 5 * 60 * 1000);
-            const onlineHtml = isOnline ? `<span style="display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; margin-left:5px;" title="מחובר כעת"></span>` : '';
+            const onlineHtml = isOnline ? `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block ml-1"></span>` : '';
 
             const msgDate = new Date(chat.time);
             const now = new Date();
@@ -275,24 +322,24 @@ async function renderChatList(filter, tabEl, isBackgroundUpdate = false) {
             const timeDisplay = isToday ? msgDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : msgDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
 
             newHTML += `
-            <div class="chat-list-item ${chat.unread ? 'unread' : ''}" onclick="loadChatIntoMainArea('${chat.email}', '${name.replace(/'/g, "\\'")}', this)">
-                <div class="chat-list-item-content">
-                <div class="chat-list-item-header">
-                    <span class="chat-list-item-name">${onlineHtml}${name}</span>
-                    <span class="chat-list-item-time">${timeDisplay}</span>
+            <div class="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors cursor-pointer border border-transparent ${chat.unread ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100' : ''}" onclick="loadChatIntoMainArea('${chat.email}', '${name.replace(/'/g, "\\'")}', this)">
+                <div class="flex justify-between items-start mb-1">
+                    <span class="font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                        ${name}
+                        ${onlineHtml}
+                    </span>
+                    <span class="text-xs text-slate-400">${timeDisplay}</span>
                 </div>
-                <div class="chat-list-item-preview">${chat.lastMsg}</div>
-            </div>
-            ${chat.unread ? '<div class="chat-list-unread-dot"></div>' : ''}
+                <p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 ${chat.unread ? 'font-bold text-slate-800 dark:text-slate-200' : ''}">${chat.lastMsg}</p>
             </div>
         `;
         });
     }
 
-    // Update DOM only if changed
-    if (newHTML !== lastChatListHTML) {
+    // Update DOM and cache only if changed
+    if (newHTML !== localStorage.getItem(cacheKey)) {
         container.innerHTML = newHTML;
-        lastChatListHTML = newHTML;
+        localStorage.setItem(cacheKey, newHTML);
     }
 }
 function loadChatIntoMainArea(email, name, el) {
@@ -300,10 +347,10 @@ function loadChatIntoMainArea(email, name, el) {
     main.innerHTML = ''; // Clear current
 
     // Highlight active chat in sidebar
-    document.querySelectorAll('.chat-list-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.p-3').forEach(item => item.classList.remove('bg-slate-100', 'dark:bg-slate-800'));
     if (el) {
-        el.classList.add('active');
-        el.classList.remove('unread'); // Mark as read visually
+        el.classList.add('bg-slate-100', 'dark:bg-slate-800');
+        el.classList.remove('bg-blue-50', 'dark:bg-blue-900/20'); // Remove unread style
         const dot = el.querySelector('.chat-list-unread-dot');
         if(dot) dot.remove();
     }
@@ -311,45 +358,54 @@ function loadChatIntoMainArea(email, name, el) {
     const isBlocked = blockedUsers.includes(email);
     const blockIconColor = isBlocked ? '#ef4444' : '#94a3b8';
     const isBook = email.startsWith('book:');
+    const isArchived = !isBook && !email.includes('@system') && !approvedPartners.has(email);
     const isSystem = email === 'admin@system' || email === 'updates@system';
     
     const partner = globalUsersData.find(u => u.email === email);
     const isOnline = partner && partner.lastSeen && (new Date() - new Date(partner.lastSeen) < 5 * 60 * 1000);
-    const lastSeenText = partner?.lastSeen ? `נראה לאחרונה: ${formatHebrewDate(partner.lastSeen)}` : (isOnline ? 'מחובר כעת' : 'לא מחובר');
     const statusText = isOnline ? 'מחובר כעת' : 'לא מחובר';
+    const statusColorClass = isOnline ? 'text-emerald-500' : 'text-red-500';
+    const statusDotBgClass = isOnline ? 'bg-emerald-400' : 'bg-red-500';
     const avatarInitial = name.charAt(0);
 
     // Reuse the chat window HTML structure but adapted for full size
     const chatHtml = `
-        <header class="chat-main-header">
-            <div class="chat-partner-info">
-                <div class="chat-partner-avatar">
-                    <div class="avatar-img">${isBook ? '<i class="fas fa-book"></i>' : avatarInitial}</div>
-                    ${isOnline && !isBook ? '<div class="online-indicator"></div>' : ''}
+        <header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center px-6 justify-between shadow-sm z-20">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white">${isBook ? '<i class="fas fa-book"></i>' : avatarInitial}</div>
+                    ${!isBook ? `<span class="absolute bottom-0 left-0 w-3 h-3 rounded-full ${statusDotBgClass} border-2 border-white dark:border-slate-900"></span>` : ''}
                 </div>
-                <div class="chat-partner-details">
-                    <span class="chat-partner-name">${name}</span>
-                    <span class="chat-partner-status">${isBook ? 'צ\'אט ציבורי' : statusText}</span>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg leading-tight text-slate-800 dark:text-white">${name}</span>
+                    <span class="text-[10px] ${statusColorClass} font-medium">${isBook ? 'צ\'אט ציבורי' : statusText}</span>
                 </div>
             </div>
-            <div class="chat-header-actions">
-                ${!isSystem && !isBook ? `<button class="btn-icon" onclick="openReportModal('${email}')" title="דיווח וחסימה"><i class="fas fa-ban" style="color:${blockIconColor}"></i></button>` : ''}
-                <button class="btn-icon" onclick="minimizeMainChat('${email}', '${name.replace(/'/g, "\\'")}')" title="מזער לחלון צף"><i class="fas fa-compress-alt"></i></button>
-                <button class="btn-icon" onclick="closeMainChat()" title="סגור"><i class="fas fa-times"></i></button>
+            <div class="flex items-center gap-4">
+                ${!isSystem && !isBook ? `<button class="hover:bg-slate-100 p-1.5 rounded-full transition-colors" onclick="openReportModal('${email}')"><span class="material-icons-round text-xl text-slate-500">block</span></button>` : ''}
+                <button class="hover:bg-slate-100 p-1.5 rounded-full transition-colors" onclick="minimizeMainChat('${email}', '${name.replace(/'/g, "\\'")}')"><span class="material-icons-round text-xl text-slate-500">open_in_full</span></button>
+                <button class="hover:bg-slate-100 p-1.5 rounded-full transition-colors" onclick="closeMainChat()"><span class="material-icons-round text-xl text-rose-400">close</span></button>
             </div>
         </header>
-        <div class="chat-messages-area" id="msgs-${email}"></div>
-        <div id="reply-preview-${email}" style="display:none; background:#e2e8f0; padding:8px; border-right:4px solid var(--accent); font-size:0.85rem; justify-content:space-between; align-items:center; margin: 0 10px;"></div>
-        <footer class="chat-main-footer">
-            <div class="chat-input-container">
-                <input type="text" id="input-${email}" placeholder="הודעה..." 
-                    oninput="handleTyping('${email}')" 
-                    onkeypress="if(event.key === 'Enter') sendMessage('${email}')">
-                <button onclick="sendMessage('${email}')">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-        </footer>
+        <div class="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/95 flex flex-col" id="msgs-${email}">
+            <div class="chat-loading-indicator" style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-circle-notch fa-spin"></i> טוען צ'אט...</div>
+        </div>
+        ${isArchived ? `
+            <footer class="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                <div class="text-center text-slate-500 p-2">צ'אט זה בארכיון (לקריאה בלבד).</div>
+            </footer>
+        ` : `
+            <footer class="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                <div class="max-w-5xl mx-auto relative flex items-center gap-3">
+                    <input type="text" id="input-${email}" class="w-full h-12 bg-slate-100 dark:bg-slate-800 border-none rounded-xl px-5 text-sm focus:ring-2 focus:ring-blue-500/50 dark:text-white dark:placeholder-slate-500" placeholder="הקלד הודעה..." 
+                        oninput="handleTyping('${email}')" 
+                        onkeypress="if(event.key === 'Enter') sendMessage('${email}')">
+                    <button class="w-12 h-12 flex items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-slate-800 transition-transform active:scale-95 shadow-md shrink-0" onclick="sendMessage('${email}')">
+                        <span class="material-icons-round transform -scale-x-100">send</span>
+                    </button>
+                </div>
+            </footer>
+        `}
     `;
     main.innerHTML = chatHtml;
 
@@ -423,8 +479,10 @@ async function loadChatHistory(partnerEmail) {
     if (isBook) {
         query = query.eq('receiver_email', partnerEmail); // For books, receiver is the book ID
     } else {
-        query = query.or(`sender_email.ilike."${myEmail}",receiver_email.ilike."${myEmail}"`)
-            .or(`sender_email.ilike."${partnerEmail}",receiver_email.ilike."${partnerEmail}"`);
+        query = query.or(
+            `and(sender_email.eq.${myEmail},receiver_email.eq.${partnerEmail})`,
+            `and(sender_email.eq.${partnerEmail},receiver_email.eq.${myEmail})`
+        );
     }
 
     const { data, error } = await query.order('created_at', { ascending: true });
@@ -433,6 +491,10 @@ async function loadChatHistory(partnerEmail) {
 
     const container = document.getElementById(`msgs-${partnerEmail}`);
     if (!container) return;
+
+    // Remove loading indicator if exists
+    const loader = container.querySelector('.chat-loading-indicator');
+    if (loader) loader.remove();
 
     if (data) {
         container.innerHTML = '';
@@ -515,6 +577,7 @@ async function loadChatRating() {
 }
 
 async function sendMessage(partnerEmail) {
+    if (!requireAuth()) return;
     const isBook = partnerEmail.startsWith('book:');
     if (!isBook && blockedUsers.includes(partnerEmail)) return await customAlert("משתמש זה חסום.");
 
@@ -563,7 +626,11 @@ async function sendMessage(partnerEmail) {
 
         if (error) {
             console.error("Supabase Error:", error);
-            await customAlert("שגיאה בשליחה: " + error.message);
+            if (error.code === "401") {
+                await customAlert("שגיאת שליחה: אין הרשאה (401).<br>בדוק את מפתח ה-API בקובץ api.js.", true);
+            } else {
+                await customAlert("שגיאה בשליחה: " + error.message);
+            }
         } else if (data && data[0]) {
             // שדר את ההודעה לכל הלקוחות המאזינים
             if (chatChannel) {
@@ -597,7 +664,7 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
     if (id && document.getElementById(`msg-${id}`)) return;
 
     const div = document.createElement('div');
-    div.className = `message-bubble msg-${type}`;
+    // div.className = `message-bubble msg-${type}`; // Old class
     if (id) div.id = `msg-${id}`;
     if (timestamp) div.dataset.timestamp = timestamp;
     div.style.cursor = 'pointer';
@@ -607,11 +674,19 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
     // For book chats, show sender name and avatar for EVERYONE (me and others)
     if (partnerEmail.startsWith('book:') && senderEmail) {
         const wrapper = document.createElement('div');
+        wrapper.className = 'new-message-animation';
         wrapper.style.display = 'flex';
         wrapper.style.alignItems = 'flex-end';
         wrapper.style.gap = '8px';
         wrapper.style.marginBottom = '8px';
-        wrapper.style.justifyContent = 'flex-end'; // יישור לצד הנגדי של כיוון השורה (ימין ב-Me, שמאל ב-Other)
+        wrapper.style.maxWidth = '70%';
+        
+        // RTL Logic:
+        // Me (Right side): justify-content: flex-start (Right in RTL), flex-direction: row (Avatar -> Message)
+        // Other (Left side): justify-content: flex-end (Left in RTL), flex-direction: row-reverse (Avatar -> Message)
+        
+        wrapper.style.alignSelf = type === 'me' ? 'flex-start' : 'flex-end';
+        wrapper.style.flexDirection = type === 'me' ? 'row' : 'row-reverse';
 
         const senderUser = globalUsersData.find(u => u.email === senderEmail);
         const isSubscribed = senderUser && senderUser.subscription && senderUser.subscription.level > 0;
@@ -624,11 +699,6 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
         avatar.innerHTML = `<i class="fas fa-user-circle ${subClass}" style="font-size: 28px; color: ${avatarColor}; cursor: pointer; border-radius:50%;" title="${subTitle}"></i>`;
         avatar.onclick = (e) => { e.stopPropagation(); showUserDetails(senderEmail); };
 
-        if (type === 'me') {
-            wrapper.style.flexDirection = 'row-reverse'; // אני בצד שמאל (או ימין ב-RTL, תלוי בכיוון) - כאן נניח RTL אז אני בשמאל
-            // ב-RTL row-reverse שם את האלמנט הראשון (avatar) בצד שמאל.
-        }
-
         wrapper.appendChild(avatar); // Avatar first in DOM
         wrapper.appendChild(div);
         container.appendChild(wrapper);
@@ -640,14 +710,33 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
         nameSpan.innerText = senderName;
         div.appendChild(nameSpan);
     } else {
-        container.appendChild(div);
+        // For personal chats, we also use a wrapper for robust alignment.
+        const wrapper = document.createElement('div');
+        wrapper.className = 'new-message-animation';
+        wrapper.style.display = 'flex';
+        wrapper.style.width = '100%';
+        wrapper.style.marginBottom = '8px';
+        wrapper.style.justifyContent = type === 'me' ? 'flex-start' : 'flex-end';
+        wrapper.appendChild(div);
+        container.appendChild(wrapper);
+    }
+
+    // Apply new Tailwind classes
+    const animClass = ''; // Animation is now on the wrapper element for both personal and book chats.
+    if (type === 'me') {
+        div.className = `message-bubble max-w-md bg-slate-800 dark:bg-slate-700 text-white p-4 rounded-2xl rounded-tr-sm shadow-lg relative`;
+    } else {
+        div.className = `message-bubble max-w-md bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tl-sm shadow-sm border border-slate-100 dark:border-slate-700 relative`;
     }
 
     // Check if the message is HTML
     if (text.includes('<button') || text.includes('chat-quote')) {
         div.innerHTML = text;
     } else {
-        div.textContent = text;
+        const p = document.createElement('p');
+        p.className = "text-sm leading-relaxed mb-1";
+        p.textContent = text;
+        div.appendChild(p);
     }
 
     if (type === 'me') {
@@ -656,15 +745,15 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
             check.className = 'msg-check';
             check.id = `check-${id}`;
             check.innerText = isRead ? '✓✓' : '✓';
-            check.style.color = isRead ? '#4ade80' : '#cbd5e1';
-            div.appendChild(check);
+            // check.style.color = isRead ? '#4ade80' : '#cbd5e1'; // Handled by classes or inline
+            // div.appendChild(check); // Will append in footer
         }
     }
 
     const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
     const timeDiv = document.createElement('div');
-    timeDiv.className = 'msg-timestamp';
-    timeDiv.innerText = timeStr;
+    timeDiv.className = 'flex justify-between items-center mt-auto pt-1 text-[10px] opacity-70';
+    timeDiv.innerHTML = `<span>${timeStr}</span>`;
     div.appendChild(timeDiv);
 
     div.onclick = function (e) {
@@ -698,7 +787,7 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
         const isMe = senderEmail === currentUser.email;
 
         const reactionsDiv = document.createElement('div');
-        reactionsDiv.className = 'msg-reactions';
+        reactionsDiv.className = 'flex gap-2 mt-2 justify-end';
 
         // הוספת הוי (Check) בתוך שורת הריאקציות
         if (type === 'me') {
@@ -706,9 +795,10 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
                 const check = document.createElement('span');
                 check.className = 'msg-check';
                 check.id = `check-${id}`;
-                check.innerText = isRead ? '✓✓' : '✓';
+                check.innerText = isRead ? 'done_all' : 'check';
+                check.className = "material-icons-round text-[14px] " + (isRead ? "text-blue-400" : "text-slate-400");
                 check.style.color = isRead ? '#4ade80' : '#cbd5e1';
-                reactionsDiv.appendChild(check);
+                timeDiv.appendChild(check); // Add check to time div
             }
         }
 
@@ -722,17 +812,17 @@ function appendMessageToWindow(partnerEmail, text, type, id, timestamp, isRead =
         }
 
         innerHTML += `
-            <div class="msg-actions-menu" style="position:relative; display:inline-block;">
-                <button class="reaction-btn" onclick="event.stopPropagation(); this.nextElementSibling.classList.toggle('active')"><i class="fas fa-ellipsis-v"></i></button>
-                <div class="msg-menu-dropdown">
-                    <div class="msg-menu-item" onclick="event.stopPropagation(); replyToMessage('${partnerEmail}', '${safeSenderName}', '${fullTextSafe}'); this.parentElement.classList.remove('active');"><i class="fas fa-reply"></i> ציטוט</div>
-                    ${isBook ? `<div class="msg-menu-item" onclick="event.stopPropagation(); openThread('${id}', '${fullTextSafe}', '${partnerEmail}'); this.parentElement.classList.remove('active');"><i class="fas fa-comments"></i> שרשור</div>` : ''}
-                    ${!isMe ? `<div class="msg-menu-item" style="color:var(--danger);" onclick="event.stopPropagation(); openReportModal('${senderEmail}'); this.parentElement.classList.remove('active');"><i class="fas fa-flag"></i> דיווח</div>` : ''}
+            <div class="relative inline-block">
+                <button class="text-slate-400 hover:text-white transition-colors" onclick="event.stopPropagation(); this.nextElementSibling.classList.toggle('hidden')"><span class="material-icons-round text-sm">more_vert</span></button>
+                <div class="hidden absolute bottom-full right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 min-w-[120px] overflow-hidden">
+                    <div class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-xs flex items-center gap-2" onclick="event.stopPropagation(); replyToMessage('${partnerEmail}', '${safeSenderName}', '${fullTextSafe}'); this.parentElement.classList.add('hidden');"><span class="material-icons-round text-sm">reply</span> ציטוט</div>
+                    ${isBook ? `<div class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-xs flex items-center gap-2" onclick="event.stopPropagation(); openThread('${id}', '${fullTextSafe}', '${partnerEmail}'); this.parentElement.classList.add('hidden');"><span class="material-icons-round text-sm">forum</span> שרשור</div>` : ''}
+                    ${!isMe ? `<div class="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 cursor-pointer text-xs flex items-center gap-2" onclick="event.stopPropagation(); openReportModal('${senderEmail}'); this.parentElement.classList.add('hidden');"><span class="material-icons-round text-sm">flag</span> דיווח</div>` : ''}
                 </div>
             </div>
         `;
-        reactionsDiv.innerHTML = innerHTML;
-        div.appendChild(reactionsDiv);
+        // reactionsDiv.innerHTML = innerHTML; // Using the more_vert menu instead
+        timeDiv.innerHTML += innerHTML;
     }
 
     container.scrollTop = container.scrollHeight;
@@ -757,6 +847,7 @@ function cancelReply(chatId) {
 
 
 async function deleteMessage(id, element) {
+    if (!requireAuth()) return;
     if (!(await customConfirm('למחוק הודעה זו?'))) return;
 
     try {
@@ -770,6 +861,7 @@ async function deleteMessage(id, element) {
 }
 
 async function toggleReaction(msgId, type, btn) {
+    if (!requireAuth()) return;
     // לוגיקה חדשה: ביטול והחלפה
     const isActive = btn.classList.contains('active');
     const container = btn.parentElement;
@@ -804,6 +896,19 @@ async function toggleReaction(msgId, type, btn) {
                 otherBtn.classList.remove('active');
                 otherBtn.style.color = '';
                 delete otherBtn.dataset.reaction;
+            }
+
+            // Award points for like
+            if (type === 'like') {
+                try {
+                    const { data: msg } = await supabaseClient.from('chat_messages').select('sender_email').eq('id', msgId).single();
+                    if (msg && msg.sender_email !== currentUser.email) {
+                        await supabaseClient.rpc('increment_field', { table_name: 'users', field_name: 'reward_points', increment_value: 5, user_email: msg.sender_email });
+                        // Optional: notify the user who got points
+                    }
+                } catch(e) {
+                    console.error("Error awarding points for like", e);
+                }
             }
         }
     } catch (e) {

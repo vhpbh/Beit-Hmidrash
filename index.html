@@ -8,11 +8,48 @@
 <link rel="apple-touch-icon" href="https://i.ibb.co/mrPRZ6FR/3-removebg-preview.png">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="api.js"></script>
-<script src="utils.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              yellow: '#FFB703',
+              navy: '#1A233A',
+              bg: '#F8F9FA',
+              lightGray: '#E9ECEF',
+              textMuted: '#6C757D'
+            }
+          },
+          fontFamily: {
+            sans: ['Heebo', 'sans-serif'],
+          },
+          borderRadius: {
+            'xl-plus': '24px',
+          }
+        }
+      }
+    }
+</script>
+
+<script src="config.js"></script>
 <script src="books_db.js"></script>
+<script src="utils.js"></script>
+
+<script src="api.js"></script>
+<script src="auth.js"></script>
+<script src="ui-logic.js"></script>  <script src="ui.js"></script>
+<script src="goals.js"></script>
+<script src="chavruta.js"></script>
 <script src="chat.js"></script>
+<script src="admin.js"></script>
+<script src="shop.js"></script>
+
 <script src="script.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -20,8 +57,74 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark .glass {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .rounded-super { border-radius: 2rem; }
+        .progress-gradient { 
+            background: linear-gradient(90deg, #EAB308 0%, #F59E0B 100%);
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+    <style>
+#chatBanner {
+    position: relative; /* או fixed/absolute תלוי בעיצוב שלך */
+    display: block;      /* וודא שהוא לא hidden ב-CSS הרגיל */
+    z-index: 100;        /* כדי שיחליק מעל אלמנטים אחרים ולא מתחתיהם */
+}
+
+.banner-hidden {
+    transform: translateY(-100%);
+    opacity: 0; /* כדאי להוסיף גם שקיפות להתחלה רכה יותר */
+    transition: transform 0.8s ease-out, opacity 0.5s ease-out;
+}
+
+.banner-visible {
+    transform: translateY(0);
+    opacity: 1;
+}    </style>
 </head>
 <body>
+<!-- Custom Modals -->
+<div id="customAlertModal" class="modal-overlay" style="z-index: 99999;">
+    <div class="modal-content" style="max-width: 300px;">
+        <h3 style="margin-top:0;">הודעה</h3>
+        <p id="cAlertMsg"></p>
+        <button id="cAlertBtn" class="btn">אישור</button>
+    </div>
+</div>
+
+<div id="customConfirmModal" class="modal-overlay" style="z-index: 99999;">
+    <div class="modal-content" style="max-width: 300px;">
+        <h3 style="margin-top:0;">אישור פעולה</h3>
+        <p id="cConfirmMsg"></p>
+        <div style="display:flex; gap:10px;">
+            <button id="cConfirmOk" class="btn">אישור</button>
+            <button id="cConfirmCancel" class="btn-outline">ביטול</button>
+        </div>
+    </div>
+</div>
+
+<div id="customPromptModal" class="modal-overlay" style="z-index: 99999;">
+    <div class="modal-content" style="max-width: 300px;">
+        <h3 style="margin-top:0;">הזנת נתונים</h3>
+        <p id="cPromptMsg"></p>
+        <input type="text" id="cPromptInput" class="auth-input">
+        <div style="display:flex; gap:10px;">
+            <button id="cPromptOk" class="btn">אישור</button>
+            <button id="cPromptCancel" class="btn-outline">ביטול</button>
+        </div>
+    </div>
+</div>
+
  <div id="suggestionModal" class="modal-overlay">
     <div class="modal-content">
         <span class="close-modal" onclick="closeModal()">&times;</span>
@@ -32,13 +135,27 @@
     </div>
  </div>
 
- <div id="cookieModal" class="modal-overlay" style="z-index: 99999; align-items: flex-end; background: rgba(0,0,0,0.3);">
-    <div class="modal-content" style="width: 90%; max-width: 600px; text-align: right; animation: slideInUp 0.5s; margin-bottom: 100px; border-radius: 16px;">
-        <h3 style="margin-top:0;"><i class="fas fa-cookie-bite" style="color:#d97706;"></i> עוגיות (Cookies)</h3>
-        <p>אנחנו משתמשים בעוגיות כדי לשפר את החוויה באתר. אל דאגה, הן כשרות לפסח! (או שנמכור אותן לגוי בזמן... 😉)</p>
-        <div style="display:flex; gap:10px;">
-            <button class="btn" onclick="acceptCookies()">אני מאשר/ת</button>
-            <button class="btn-outline" onclick="document.getElementById('cookieModal').style.display='none'" style="border-radius: 8px;">לא מאשר</button>
+ <div id="cookieModal" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] w-full max-w-md px-4 animate-in fade-in slide-in-from-bottom-8 duration-500" style="display: none;">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-slate-100 dark:border-slate-700 w-full">
+        <div class="flex items-center justify-start gap-2 mb-3">
+            <span class="text-xl">🍪</span>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                עוגיות (Cookies)
+            </h2>
+        </div>
+        <div class="h-px w-full bg-slate-100 dark:bg-slate-700 mb-4"></div>
+        <div class="mb-5">
+            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                אנחנו משתמשים בעוגיות כדי לשפר את החוויה באתר. אל דאגה, הן כשרות לפסח! (או שנמכור אותן לגוי בזמן... 😉)
+            </p>
+        </div>
+        <div class="flex flex-col md:flex-row gap-3 items-stretch">
+            <button class="order-2 md:order-1 flex-shrink-0 px-4 py-2 rounded-xl border border-slate-900 dark:border-slate-500 text-slate-900 dark:text-slate-200 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors duration-200 text-center" onclick="document.getElementById('cookieModal').style.display='none'">
+                לא מאשר
+            </button>
+            <button class="order-1 md:order-2 flex-grow px-4 py-2 rounded-xl bg-slate-900 dark:bg-[#f4b400] text-white dark:text-slate-900 font-bold text-sm hover:opacity-90 transition-opacity duration-200 shadow-md shadow-slate-200 dark:shadow-none" onclick="acceptCookies()">
+                אני מאשר/ת
+            </button>
         </div>
     </div>
  </div>
@@ -119,8 +236,14 @@
 
 <!-- מודאל הערות אישיות -->
 <div id="notesModal" class="modal-overlay" style="z-index: 2010;">
-    <div class="modal-content" style="width: 95%; max-width: 1200px; height: 90vh; padding: 0; display: flex; flex-direction: column; overflow: hidden;">
-        <span class="close-modal" onclick="closeModal()">&times;</span>
+    <div class="modal-content" style="width: 95%; max-width: 1200px; height: 90vh; padding: 0; display: flex; flex-direction: column; overflow: hidden; background: transparent; box-shadow: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--primary); color: white; padding: 10px 15px; border-radius: 12px 12px 0 0;">
+            <h3 id="notesBookTitle" style="margin: 0; color: white; border: none;">מחברת חידושי תורה</h3>
+            <div>
+                <button class="btn-outline" onclick="saveNotesFromModal()" style="color:white; border-color:white; font-size:0.8rem; padding:4px 8px;"><i class="fas fa-save"></i> שמור חידושים</button>
+                <span class="close-modal" onclick="closeModal()" style="position: static; color: white; transform: none; margin-right: 15px;">&times;</span>
+            </div>
+        </div>
         <iframe id="notesFrame" style="width:100%; height:100%; border:none; border-radius: 16px;"></iframe>
     </div>
 </div>
@@ -143,22 +266,28 @@
 </div>
 
 <div id="followersModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 400px; max-height: 80vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0;">העוקבים שלי</h3>
-            <span class="close-modal" onclick="closeModal()" style="position: static;">&times;</span>
-        </div>
-        <div id="followersListContent" style="overflow-y: auto; flex: 1;"></div>
-    </div>
-</div>
-
-<div id="completionsModal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="margin: 0;">הסיומים שלי</h3>
-            <span class="close-modal" onclick="closeModal()" style="position: static;">&times;</span>
-        </div>
-        <div id="completionsListContent" style="overflow-y: auto; flex: 1;"></div>
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-xl overflow-hidden relative flex flex-col m-4">
+        <!-- Close Button -->
+        <button aria-label="סגור" class="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors z-10" onclick="closeModal()">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+        </button>
+        <!-- Header Section -->
+        <header class="pt-8 pb-4 px-8 flex flex-col items-center text-center">
+            <h1 class="text-xl font-bold text-slate-800 dark:text-white mb-4">עוקבים</h1>
+            <!-- Tab Navigation -->
+            <div id="followers-tabs" class="w-full max-w-xs flex p-1 bg-slate-100 dark:bg-slate-800 rounded-full">
+                <button class="flex-1 py-2 px-4 rounded-full text-sm font-semibold transition-colors" onclick="renderFollowsList('followers', this)">
+                    עוקבים אחריי
+                </button>
+                <button class="flex-1 py-2 px-4 rounded-full text-sm font-semibold transition-colors" onclick="renderFollowsList('following', this)">
+                    אני עוקב אחרי
+                </button>
+            </div>
+        </header>
+        <!-- User List Section -->
+        <main id="follows-list-area" class="px-6 pb-6 flex flex-col gap-2 max-h-[50vh] overflow-y-auto" style="border-top: 1px solid var(--border-color); padding-top: 1rem;"></main>
     </div>
 </div>
 
@@ -348,29 +477,69 @@
     </div>
 </div>
 
-<div id="userModal" class="modal-overlay">
-    <div class="modal-content">
-        <div style="position: relative; top: 0; background: var(--card-bg); z-index: 10; margin: -25px -25px 0 -25px; padding: 25px 25px 10px 25px; border-radius: 16px 16px 0 0;">
-            <button class="close-modal" onclick="closeModal()" style="position: absolute; top: 15px; left: 15px;"><i class="fas fa-times"></i></button>
-            <div style="font-size:3rem; color:#cbd5e1; margin-bottom:10px;"><i class="fas fa-user-circle"></i></div>
+<div id="userModal" class="modal-overlay" onclick="if (event.target === this) closeModal();">
+    <div class="relative w-full max-w-[400px] bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-slate-800 pb-2">
+        <!-- Close Button -->
+        <button aria-label="סגור" class="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10" onclick="closeModal()">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+        </button>
+        <div class="p-6 max-h-[85vh] overflow-y-auto">
+            <!-- HeaderSection -->
+            <header class="flex flex-col items-center text-center mt-2">
+                <!-- Avatar Section -->
+                <div id="modalUserAvatar" class="relative mb-4">
+                    <div class="w-24 h-24 rounded-full bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 flex items-center justify-center overflow-hidden shadow-inner">
+                        <i class="fas fa-user text-gray-400 text-5xl"></i>
+                    </div>
+                </div>
+                <!-- Name and Rank -->
+                <h1 id="modalUserName" class="text-2xl font-extrabold text-brand-text dark:text-white mb-2">טוען...</h1>
+                <div class="flex flex-col items-center gap-2">
+                    <div id="modalUserRank" class="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-4 py-1 rounded-full border border-yellow-500/20 flex items-center gap-2 font-bold text-sm">
+                        טוען דרגה...
+                    </div>
+                    <div id="modalUserSubscription"></div>
+                    <span id="modalUserAge" class="text-gray-500 dark:text-slate-400 text-sm font-semibold"></span>
+                </div>
+            </header>
+            <hr class="my-6 border-gray-100 dark:border-slate-800"/>
+            <!-- InfoSection -->
+            <section id="modalContactInfo" class="bg-gray-100/50 dark:bg-slate-800/50 rounded-2xl p-4 space-y-3">
+                <!-- Contact details will be injected here by JS -->
+            </section>
+            <!-- ContentLists -->
+            <div class="grid grid-cols-1 gap-6 mt-6">
+                <!-- Learning Now List -->
+                <div id="modalLearningNowSection">
+                    <h3 class="flex items-center gap-2 text-gray-800 dark:text-white font-extrabold mb-3">
+                        <span class="w-2 h-6 bg-yellow-500 rounded-full"></span>
+                        לומד כעת:
+                    </h3>
+                    <div id="modalUserBooks" class="space-y-2">
+                        <!-- Books will be injected here -->
+                    </div>
+                </div>
+                <!-- Archive List -->
+                <div id="modalArchiveSection" style="display:none;">
+                    <h3 class="flex items-center gap-2 text-gray-800 dark:text-white font-extrabold mb-3">
+                        <span class="w-2 h-6 bg-green-500 rounded-full"></span>
+                        ארכיון (הושלמו):
+                    </h3>
+                    <ul id="modalUserArchive" class="space-y-2">
+                        <!-- Archived books will be injected here -->
+                    </ul>
+                </div>
+            </div>
         </div>
-        <h3 id="modalUserName" style="margin-bottom:5px;">שם משתמש</h3>
-        <p id="modalUserRank" style="color:var(--accent); font-weight:bold; margin:0;">דירוג: 0</p>
-        <div id="modalUserSubscription"></div>
-        <p id="modalUserAge" style="color:#64748b; font-size:0.9rem; margin:5px 0 0 0;"></p>
-        <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-        <div style="text-align:right;">
-            <p style="font-size:0.9rem; font-weight:bold;">לומד כעת:</p>
-            <ul id="modalUserBooks" style="padding-right:20px; font-size:0.9rem; color:#666;"></ul>
-        </div>
-        <div id="modalActions" style="margin-top:20px;"></div>
     </div>
 </div>
 <header id="mainHeader" class="sticky-header glass">
     <div class="header-container">
         <!-- Logo and Title -->
         <div class="header-group-left">
-            <div class="header-logo-wrapper" onclick="switchScreen('dashboard', document.querySelector('.nav-item'))" style="cursor:pointer;">
+            <div class="header-logo-wrapper">
                 <span class="material-icons-round">menu_book</span>
             </div>
             <div class="header-title-wrapper">
@@ -422,14 +591,17 @@
                         <div id="profile-menu-achievements" class="profile-menu-item" onclick="toggleProfileMenu(); showAchievements();">
                             <i class="fas fa-medal"></i> הישגים
                         </div>
+                     <div class="profile-menu-item" onclick="toggleProfileMenu(); switchScreen('shop');">
+                         <i class="fas fa-store"></i> חנות
+                     </div>
                          <div class="profile-menu-item" onclick="toggleProfileMenu(); switchScreen('calendar');">
                             <i class="fas fa-calendar-alt"></i> לוח זמנים
                         </div>
                         <div class="profile-menu-item" onclick="toggleProfileMenu(); switchScreen('profile');">
                             <i class="fas fa-user-edit"></i> עריכת פרופיל
                         </div>
-                        <div class="profile-menu-item" onclick="toggleProfileMenu(); showFollowersAndFollowing();">
-                            <i class="fas fa-users"></i> עוקבים ונעקבים
+                        <div class="profile-menu-item" onclick="toggleProfileMenu(); showFollows();">
+                            <i class="fas fa-users"></i> העוקבים שלי
                             <span id="followersCountBadge" style="margin-right: auto; font-size: 0.9rem; color: inherit; font-weight: normal;">0</span>
                         </div>
                         <div class="profile-menu-item" style="display: flex; justify-content: space-between; align-items: center;">
@@ -475,7 +647,7 @@
                         <p class="stat-value" style="color:#f59e0b;" id="stat-pages">0</p>
                         <p class="stat-label">דפים/פרקים</p>
                     </div>
-                    <div class="stat-card" onclick="showMyCompletions()" style="cursor:pointer;">
+                    <div class="stat-card">
                         <p class="stat-value" style="color:#10b981;" id="stat-completed">0</p>
                         <p class="stat-label">סיומים</p>
                     </div>
@@ -484,7 +656,6 @@
                         <p class="stat-label">רייטינג</p>
                     </div>
                 </div>
-
             </div>
         </div>
 
@@ -643,7 +814,7 @@
         </div>
     </div>
 
-    <div id="screen-chats" class="screen" style="height: calc(100vh - 67px);">
+    <div id="screen-chats" class="screen" style="height: 100%;">
         <div class="chat-screen-container">
             <div class="chat-sidebar">
                 <div class="chat-tabs">
@@ -676,12 +847,68 @@
     </div>
 
     <div id="screen-chavrutas" class="screen">
-        <div class="card">
-            <h2><i class="fas fa-users"></i> החברותות שלי</h2>
-            <div id="chavrutasList"></div>
+        <!-- תוכן החברותות יטען כאן על ידי renderChavrutas() -->
+        <div id="chavrutasList"></div>
+    </div>
+    <div id="screen-chavruta-results" class="screen">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <aside class="w-full lg:w-72 space-y-6">
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-bold flex items-center gap-2">
+                                <span class="material-icons-round text-amber-500">filter_alt</span>
+                                מסננים
+                            </h2>
+                            <button class="text-xs text-amber-500 font-bold hover:underline" onclick="resetChavrutaFilters()">נקה הכל</button>
+                        </div>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="text-sm font-bold block mb-3">קבוצת גיל</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button class="filter-age-btn bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors" onclick="filterChavrutaByAge(20, 30, this)">20-30</button>
+                                    <button class="filter-age-btn bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors" onclick="filterChavrutaByAge(30, 45, this)">30-45</button>
+                                    <button class="filter-age-btn bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors" onclick="filterChavrutaByAge(45, 60, this)">45-60</button>
+                                    <button class="filter-age-btn bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors" onclick="filterChavrutaByAge(60, 120, this)">60+</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold block mb-3">מיקום</label>
+                                <label class="flex items-center gap-3 cursor-pointer group" onclick="toggleCustomCheckbox('filterSameCity')">
+                                    <input type="checkbox" id="filterSameCity" class="hidden">
+                                    <div id="visual-filterSameCity" class="w-5 h-5 border-2 border-slate-300 dark:border-slate-600 rounded flex items-center justify-center transition-colors">
+                                        <span class="material-icons-round text-white text-xs hidden">check</span>
+                                    </div>
+                                    <span class="text-sm">אותה עיר (<span id="userCityDisplay"></span>)</span>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="text-sm font-bold block mb-3">היסטוריית לימוד</label>
+                                <label class="flex items-center gap-3 cursor-pointer group" onclick="toggleCustomCheckbox('filterHistory')">
+                                    <input type="checkbox" id="filterHistory" class="hidden">
+                                    <div id="visual-filterHistory" class="w-5 h-5 border-2 border-slate-300 dark:border-slate-600 rounded flex items-center justify-center transition-colors">
+                                        <span class="material-icons-round text-white text-xs hidden">check</span>
+                                    </div>
+                                    <span class="text-sm">למדנו בעבר יחד</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+                <section class="flex-1 space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-2xl font-extrabold flex items-center gap-2">
+                            תוצאות חיפוש חברותא
+                            <span class="text-sm font-normal text-slate-500 dark:text-slate-400" id="resultsCountLabel"></span>
+                        </h2>
+                    </div>
+                    <div id="chavrutaResultsPageContainer" class="space-y-6"></div>
+                </section>
+            </div>
         </div>
     </div>
 
+    
     <div id="screen-leaderboard" class="screen">
         <div class="container" style="max-width: 800px; padding: 0;">
             <div class="lb-header-section">
@@ -739,53 +966,85 @@
     </div>
     
     <div id="screen-calendar" class="screen">
-        <div class="card">
-            <h2><i class="fas fa-calendar-alt"></i> לוח זמנים שבועי</h2>
-            <div id="calendarView"></div>
-        </div>
+        <div id="calendarView" class="max-w-4xl mx-auto p-4"></div>
     </div>
-
+    <div id="screen-shop" class="screen">
+        <!-- Shop content will be rendered here by shop.js -->
+    </div>
     <div id="screen-profile" class="screen">
-        <div class="card">
-            <h2><i class="fas fa-user-edit"></i> הגדרות פרופיל</h2>
-            <div class="form-group">
-                <label>שם לתצוגה:</label>
-                <input type="text" id="profileName">
+        <div class="bg-white rounded-xl-plus card-shadow p-8 md:p-12 overflow-hidden border border-gray-100">
+            <!-- Section Header -->
+            <div class="flex items-center gap-3 mb-10 border-b border-gray-50 pb-6">
+                <div class="bg-brand-navy/5 p-3 rounded-2xl">
+                    <svg class="h-6 w-6 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-brand-navy">הגדרות פרופיל</h2>
             </div>
-            <div class="form-group">
-                <label>מספר טלפון (יוצג רק לאחר אישור חברותא):</label>
-                <input type="tel" id="profilePhone" placeholder="050-0000000">
-            </div>
-            <div class="form-group">
-                <label>עיר מגורים:</label>
-                <input type="text" id="profileCity" placeholder="עיר" list="cities-list">
-            </div>
-            <div class="form-group">
-                <label>גיל:</label>
-                <input type="number" id="profileAge" placeholder="הזן את גילך">
-            </div>
-            <div class="form-group">
-                <label>כתובת מלאה (אופציונלי):</label>
-                <input type="text" id="profileAddress" placeholder="רחוב ומספר">
-            </div>
-            <div class="form-group" style="display:flex; justify-content:space-between;">
-                <label>הישאר אנונימי בלוח:</label>
-                <label class="switch"><input type="checkbox" id="anonSwitch"><span class="slider"></span></label>
-            </div>
-            
-            <h3 style="margin-top:20px;"><i class="fas fa-lock"></i> אבטחה וסיסמה</h3>
-            <div class="form-group">
-                <label>שינוי סיסמה:</label>
-                <input type="password" id="profileNewPass" placeholder="הזן סיסמה חדשה (השאר ריק אם אין שינוי)">
-            </div>
-            
-            <div class="form-group">
-                <label>שאלת שחזור סיסמה:</label>
-                <input type="text" id="profileSecQ" placeholder="השאלה שלך">
-                <input type="text" id="profileSecA" placeholder="התשובה שלך">
-            </div>
-
-            <button class="btn" onclick="saveProfile()">שמור הגדרות</button>
+            <form class="space-y-8" onsubmit="event.preventDefault();">
+                <!-- BEGIN: Personal Info Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-brand-navy mr-1">שם לתצוגה:</label>
+                        <input id="profileName" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium" placeholder="שם לתצוגה" type="text"/>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-brand-navy mr-1">מספר טלפון (יוצג רק לאחר אישור חברותא):</label>
+                        <input id="profilePhone" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium text-left" dir="ltr" type="tel" placeholder="050-0000000"/>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-brand-navy mr-1">עיר מגורים:</label>
+                        <input id="profileCity" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium" type="text" placeholder="עיר" list="cities-list"/>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-brand-navy mr-1">גיל:</label>
+                        <input id="profileAge" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium" type="number" placeholder="גיל"/>
+                    </div>
+                    <div class="md:col-span-2 space-y-2">
+                        <label class="block text-sm font-bold text-brand-navy mr-1">כתובת מלאה (אופציונלי):</label>
+                        <input id="profileAddress" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium" placeholder="רחוב ומספר" type="text"/>
+                    </div>
+                    <div class="md:col-span-2 flex items-center justify-between bg-brand-bg/50 p-4 rounded-2xl border border-dashed border-gray-200">
+                        <span class="text-sm font-bold text-brand-navy">הישאר אנונימי בלוח:</span>
+                        <label class="switch">
+                            <input type="checkbox" id="anonSwitch"/>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <!-- END: Personal Info Section -->
+                <!-- BEGIN: Security Section -->
+                <div class="pt-6 mt-6 border-t border-gray-100">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="bg-brand-navy/5 p-2 rounded-xl">
+                            <svg class="h-5 w-5 text-brand-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-brand-navy">אבטחה וסיסמה</h3>
+                    </div>
+                    <div class="space-y-6">
+                        <div class="space-y-2">
+                            <label class="block text-sm font-bold text-brand-navy mr-1">שינוי סיסמה:</label>
+                            <input id="profileNewPass" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium" placeholder="הזן סיסמה חדשה (השאר ריק אם אין שינוי)" type="password"/>
+                        </div>
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold text-brand-navy mr-1">שאלת שחזור סיסמה:</label>
+                            <input id="profileSecQ" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium mb-3" placeholder="השאלה שלך" type="text"/>
+                            <input id="profileSecA" class="w-full bg-brand-bg border-none rounded-2xl py-3 px-4 focus:ring-2 focus:ring-brand-yellow text-brand-navy font-medium" placeholder="התשובה שלך" type="text"/>
+                        </div>
+                    </div>
+                </div>
+                <!-- END: Security Section -->
+                <!-- BEGIN: Save Button -->
+                <div class="pt-8">
+                    <button class="w-full bg-brand-navy text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-opacity-90 transition-all transform hover:-translate-y-0.5 active:translate-y-0" type="button" onclick="saveProfile()">
+                        שמור הגדרות
+                    </button>
+                </div>
+                <!-- END: Save Button -->
+            </form>
         </div>
     </div>
 
@@ -808,6 +1067,8 @@
                     <button class="admin-tab-btn" onclick="switchAdminTab('suggestions')"><i class="fas fa-lightbulb"></i> הצעות ייעול</button>
                     <button class="admin-tab-btn" onclick="switchAdminTab('marketing')"><i class="fas fa-mail-bulk"></i> רשימת תפוצה</button>
                     <button class="admin-tab-btn" onclick="switchAdminTab('tools')"><i class="fas fa-tools"></i> כלים ובוטים</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('shop')"><i class="fas fa-store"></i> ניהול חנות</button>
+                    <button class="admin-tab-btn" onclick="switchAdminTab('sql')"><i class="fas fa-database"></i> הרצת SQL</button>
                     <button class="admin-tab-btn" style="color: #ef4444;" onclick="adminWipeAllData()"><i class="fas fa-radiation"></i> איפוס מערכת</button>
                 </div>
 
@@ -926,6 +1187,30 @@
                             <button class="admin-btn" style="background:#ef4444; width:100%; margin-top:10px; padding:10px;" onclick="adminDeleteChatRange()">בצע מחיקה</button>
                         </div>
                     </div>
+
+                    <!-- לשונית SQL -->
+                    <div id="admin-sec-sql" class="admin-section">
+                        <h3 style="color:#fff; border:none;">הרצת פקודות SQL</h3>
+                        <p style="color:#94a3b8; font-size:0.9rem;">הזן פקודת SQL להרצה (דורש פונקציית exec_sql בשרת).</p>
+                        <textarea id="adminSqlInput" class="admin-input" placeholder="SELECT * FROM users..." style="height: 150px; font-family: monospace; direction: ltr; text-align: left;"></textarea>
+                        <button class="admin-btn" style="background: #3b82f6; color: #fff; font-size: 1rem; padding: 8px 15px; margin-top: 10px;" onclick="executeAdminSQL()">הרץ שאילתה</button>
+                        <div id="adminSqlOutput" style="background: #0f172a; color: #22c55e; padding: 15px; margin-top: 15px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; direction: ltr; text-align: left; min-height: 100px; border: 1px solid #334155;"></div>
+                    </div>
+                </div>
+
+                <!-- לשונית חנות -->
+                <div id="admin-sec-shop" class="admin-section">
+                    <h3 style="color:#fff; border:none;">ניהול חנות וירטואלית</h3>
+                    <!-- Add/Edit Item Form -->
+                    <div id="adminShopItemForm" style="background:#0f172a; padding:15px; border-radius:8px; border:1px solid #334155; margin-bottom:20px;"></div>
+                    <!-- Items List -->
+                    <div id="adminShopItemsList"></div>
+                    <hr style="border-color:#334155; margin: 20px 0;">
+                    <!-- Add/Edit Lottery Form -->
+                    <h3 style="color:#fff; border:none;">ניהול הגרלות</h3>
+                    <div id="adminLotteryForm" style="background:#0f172a; padding:15px; border-radius:8px; border:1px solid #334155; margin-bottom:20px;"></div>
+                    <!-- Lotteries List -->
+                    <div id="adminLotteriesList"></div>
                 </div>
             </div>
         </div>
@@ -959,7 +1244,7 @@
     </div>
 </div>
 
-<div class="h-32"></div> <!-- Spacer for bottom content -->
+<div class="h-32" id="bottom-spacer"></div> <!-- Spacer for bottom content -->
 
 <datalist id="cities-list">
     <option value="ירושלים">

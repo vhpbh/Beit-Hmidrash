@@ -2,63 +2,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setupInterfaceChanges();
 });
 
-const SEARCH_TAGS = [
-    { id: 'users', name: 'משתמשים', screens: ['screen-leaderboard', 'screen-chavrutas'] },
-    { id: 'my-goals', name: 'המסכתות שלי', screens: ['screen-dashboard', 'screen-archive'] },
-    { id: 'my-chavrutas', name: 'החברותות שלי', screens: ['screen-chavrutas'] },
-    { id: 'chats', name: 'צ\'אטים', screens: [] }, // Special handling for open chat windows
-    { id: 'books', name: 'ספרים', screens: ['screen-add'] } // Search the library
-];
-
-// הגדרת מסלולי מנוי
-const SUBSCRIPTION_TIERS = [
-    { price: 10, name: "תומך כשר", level: 1, color: "#d97706" },
-    { price: 25, name: "תומך כשר מהדרין", level: 2, color: "#d97706" },
-    { price: 50, name: "תומך תורה", level: 3, color: "#d97706" },
-    { price: 75, name: "גביר", level: 4, color: "#d97706" },
-    { price: 100, name: "זבולון מתחיל", level: 5, color: "#d97706" },
-    { price: 150, name: "זבולון מתקדם", level: 6, color: "#d97706" },
-    { price: 250, name: "זבולון אינטנסיבי", level: 7, color: "#d97706" }
-];
-
-// מסלולי תרומה חד פעמית
-const ONE_TIME_TIERS = [
-    { price: 18, name: "חי שקלים", level: 0, color: "#e5e7eb" },
-    { price: 36, name: "פעמיים חי", level: 0, color: "#d1d5db" },
-    { price: 72, name: "עולם חסד", level: 0, color: "#9ca3af" },
-    { price: 100, name: "מאה ברכות", level: 0, color: "#fcd34d" },
-    { price: 180, name: "עשרת המונים", level: 0, color: "#60a5fa" },
-    { price: 360, name: "פרנס היום", level: 0, color: "#818cf8" },
-    { price: 500, name: "נדיב לב", level: 0, color: "#a78bfa" },
-    { price: 1000, name: "עמוד התווך", level: 0, color: "#f472b6" }
-];
-
-
 let currentUser = null;
-let userGoals = [];
 let currentLeaderboardSort = 'learned';
+let lastLeaderboardHTML = '';
 
-// משתני צ'אט (הוסרו משתנים גלובליים יחידים לטובת ניהול חלונות)
+
 let dafYomiToday = null;
 let chatInterval = null;
 let chatChannel = null;
 let realtimeSubscription = null;
 let typingTimers = {};
 
-// === פונקציות ליבה ===
-
-function formatHebrewDate(dateString) {
-    if (!dateString) return 'לא ידוע';
-    try {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-    } catch (e) { return 'לא ידוע'; }
-}
-
-function updateHebrewDateDisplay(input, displayId) {
-    const el = document.getElementById(displayId);
-    if (el && input.value) el.innerText = new Date(input.value).toLocaleDateString('he-IL');
-}
 
 async function init() {
     checkBanStatus(); // בדיקת חסימת מכשיר
@@ -101,83 +55,38 @@ async function init() {
         // setupInterfaceChanges(); // הועבר מחוץ לתנאי כדי שירוץ תמיד
         await syncGlobalData();
         notificationsEnabled = true;
+
+        // הוספת onclick לכפתור הסיומים לאחר שהכל נטען
+        const completedStatCard = document.getElementById('stat-completed')?.closest('.stat-card');
+        if (completedStatCard) {
+            completedStatCard.style.cursor = 'pointer';
+            completedStatCard.onclick = () => showCompletions();
+        }
         updateFollowersCount(); // עדכון מונה עוקבים בטעינה
         sendHeartbeat();
         setupRealtime();
         logVisit(); // Log visitor
-    }
-}
-
-function setupInterfaceChanges() {
-    // 1. יצירת מסך פרסומות אם לא קיים
-    if (!document.getElementById('screen-ads')) {
-        const adsScreen = document.createElement('div');
-        adsScreen.id = 'screen-ads';
-        adsScreen.className = 'screen';
-        adsScreen.innerHTML = `
-            <div class="container">
-                <div class="card">
-                    <h2><i class="fas fa-bullhorn" style="color:var(--accent);"></i> לוח מודעות</h2>
-                    <div id="ads-container">
-                        <p style="text-align:center; color:#94a3b8;">טוען פרסומות...</p>
-                    </div>
-                </div>
-            </div>
-        `;
-        const container = document.querySelector('.container');
-        if (container && container.parentNode) container.parentNode.appendChild(adsScreen);
-    }
-
-    // 2. עדכון סרגל הניווט התחתון
-    // Bottom nav is now static in HTML, no longer generated here.
-
-    // 3. הוספת "לוח" (Leaderboard) לתפריט הפרופיל
-    const profileMenu = document.getElementById('profile-dropdown');
-    if (profileMenu) {
-        profileMenu.innerHTML = `
-            <div id="profile-menu-achievements" class="profile-menu-item" onclick="toggleProfileMenu(); showAchievements();">
-                <i class="fas fa-medal"></i> הישגים
-            </div>
-            <div class="profile-menu-item" onclick="toggleProfileMenu(); switchScreen('calendar');">
-                <i class="fas fa-calendar-alt"></i> לוח זמנים
-            </div>
-            <div class="profile-menu-item" onclick="toggleProfileMenu(); switchScreen('profile');">
-                <i class="fas fa-user-edit"></i> עריכת פרופיל
-            </div>
-            <div class="profile-menu-item" onclick="toggleProfileMenu(); showMyFollowers();">
-                <i class="fas fa-users"></i> העוקבים שלי
-                <span id="followersCountBadge" style="margin-right: auto; font-size: 0.9rem; color: inherit; font-weight: normal;">0</span>
-            </div>
-            <div class="profile-menu-item" style="display: flex; justify-content: space-between; align-items: center;">
-                <span><i class="fas fa-moon"></i> מצב לילה</span>
-                <label class="switch">
-                    <input type="checkbox" id="darkModeSwitch" onchange="toggleDarkMode(event)">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="profile-menu-item" onclick="toggleProfileMenu(); openChat('admin@system', 'תמיכה');">
-                <i class="fas fa-headset"></i> תמיכה / פנייה למנהל
-            </div>
-            <div class="profile-menu-item" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i> התנתק
-            </div>
-        `;
-    }
-
-    // 7. הסתרת שורת חיפוש לומד בחברותות
-    const userSearchInput = document.getElementById('userSearchInput');
-    if (userSearchInput && userSearchInput.parentElement) {
-        userSearchInput.parentElement.style.display = 'none';
-    }
-
-}
-
-function checkBanStatus() {
-    if (localStorage.getItem('device_banned') === 'true') {
+        
+        // === הוספה: החלת התאמות אישיות (רקעים/אייקונים) ===
+        if (typeof applyUserCustomizations === 'function') {
+            await applyUserCustomizations();
+        }
+    } else {
+        // New Guest Mode
         document.getElementById('auth-overlay').style.display = 'none';
-        document.getElementById('banned-overlay').style.display = 'flex';
+        setupGuestHeader();
+        await syncGlobalData(); // To get public data like users for leaderboard
+        renderLeaderboard();
+        loadAds();
+        getDafYomi();
+        renderGoals(); // To show empty state
+        checkCookieConsent();
+        if (localStorage.getItem('torahApp_darkMode') === 'true') toggleDarkMode(null, true);
     }
 }
+
+
+
 
 function checkCookieConsent() {
     if (!localStorage.getItem('torahApp_cookie_consent')) {
@@ -199,523 +108,8 @@ async function acceptCookies() {
     }
 }
 
-function openSearchDropdown() {
-    const dropdown = document.getElementById('searchDropdown');
-    const tagsContainer = document.getElementById('search-tags-container');
-
-    // Populate tags if not already there
-    if (tagsContainer.children.length === 0) {
-        tagsContainer.innerHTML = SEARCH_TAGS.map(tag =>
-            `<div class="search-tag" id="search-tag-${tag.id}" onclick="toggleSearchTag('${tag.id}')">${tag.name}</div>`
-        ).join('');
-    }
-
-    // Reset state
-    // document.querySelectorAll('.search-tag').forEach(t => t.classList.remove('active'));
-    document.getElementById('generalSearchResults').innerHTML = `<div style="text-align:center; color:#94a3b8; padding-top: 50px;"><i class="fas fa-search" style="font-size: 3rem; opacity: 0.5;"></i><p>הקלד כדי להתחיל חיפוש</p></div>`;
-
-    // Auto-select tags based on context
-    const activeScreen = document.querySelector('.screen.active')?.id;
-    SEARCH_TAGS.forEach(tag => {
-        if (activeScreen && tag.screens.includes(activeScreen)) {
-            document.getElementById(`search-tag-${tag.id}`).classList.add('active');
-        }
-    });
-
-    // Special check for open chat windows
-    if (document.querySelector('.chat-window:not(.minimized)')) {
-        document.getElementById('search-tag-chats').classList.add('active');
-    }
-
-    dropdown.classList.add('active');
-}
-
-function closeSearchDropdown() {
-    document.getElementById('searchDropdown').classList.remove('active');
-}
-
-function toggleSearchTag(tagId) {
-    document.getElementById(`search-tag-${tagId}`).classList.toggle('active');
-    // Re-run search with new filters
-    executeGeneralSearch();
-}
-
-function toggleLeaderboardSort(sortType) {
-    currentLeaderboardSort = sortType;
-    document.getElementById('sort-learned-btn').className = sortType === 'learned' ? 'lb-tab-btn active' : 'lb-tab-btn';
-    document.getElementById('sort-rating-btn').className = sortType === 'rating' ? 'lb-tab-btn active' : 'lb-tab-btn';
-    renderLeaderboard();
-}
-
 let searchDebounceTimer;
-function debouncedGeneralSearch() {
-    clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = setTimeout(executeGeneralSearch, 300);
-}
 
-function handleSearchInput() {
-    const input = document.getElementById('generalSearchInput');
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (clearBtn) {
-        clearBtn.style.display = input.value.length > 0 ? 'block' : 'none';
-    }
-    debouncedGeneralSearch();
-}
-
-function clearSearch() {
-    const input = document.getElementById('generalSearchInput');
-    input.value = '';
-    document.getElementById('clearSearchBtn').style.display = 'none';
-    input.focus();
-    document.getElementById('generalSearchResults').innerHTML = `<div style="text-align:center; color:#94a3b8; padding-top: 50px;"><i class="fas fa-search" style="font-size: 3rem; opacity: 0.5;"></i><p>הקלד כדי להתחיל חיפוש</p></div>`;
-}
-
-async function executeGeneralSearch() {
-    const query = document.getElementById('generalSearchInput').value.trim().toLowerCase();
-    const resultsContainer = document.getElementById('generalSearchResults');
-
-    if (query.length < 2) {
-        resultsContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; padding-top: 50px;"><i class="fas fa-search" style="font-size: 3rem; opacity: 0.5;"></i><p>הקלד לפחות 2 תווים לחיפוש</p></div>`;
-        return;
-    }
-
-    resultsContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; padding-top: 50px;"><i class="fas fa-circle-notch fa-spin" style="font-size: 3rem;"></i><p>מחפש...</p></div>`;
-
-    const activeTags = Array.from(document.querySelectorAll('.search-tag.active')).map(t => t.id.replace('search-tag-', ''));
-    const searchAll = activeTags.length === 0;
-
-    let results = {};
-    let promises = [];
-
-    if (searchAll || activeTags.includes('users')) {
-        promises.push(searchUsers(query).then(r => results.users = r));
-    }
-    if (searchAll || activeTags.includes('my-goals')) {
-        promises.push(searchMyGoals(query).then(r => results.my_goals = r));
-    }
-    if (searchAll || activeTags.includes('my-chavrutas')) {
-        promises.push(searchMyChavrutas(query).then(r => results.my_chavrutas = r));
-    }
-    if (searchAll || activeTags.includes('chats')) {
-        promises.push(searchChats(query).then(r => results.chats = r));
-    }
-    if (searchAll || activeTags.includes('books')) {
-        promises.push(searchLibraryBooks(query).then(r => results.books = r));
-    }
-
-    await Promise.all(promises);
-    renderGeneralSearchResults(results, query);
-}
-
-// Individual search functions
-async function searchUsers(query) {
-    return globalUsersData.filter(u =>
-        u.email.toLowerCase().includes(query) ||
-        u.name.toLowerCase().includes(query) ||
-        (u.city && u.city.toLowerCase().includes(query))
-    );
-}
-
-async function searchMyGoals(query) {
-    return userGoals.filter(g =>
-        g.bookName.toLowerCase().includes(query) ||
-        (g.dedication && g.dedication.toLowerCase().includes(query))
-    );
-}
-
-async function searchMyChavrutas(query) {
-    const partnerEmails = chavrutaConnections.map(c => c.email);
-    return globalUsersData.filter(u =>
-        partnerEmails.includes(u.email) &&
-        (u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query))
-    );
-}
-
-
-
-async function searchLibraryBooks(query) {
-    const results = [];
-    BOOKS_DB.forEach(book => {
-        if (book.name.includes(query)) {
-            results.push({ name: book.name, units: book.units, category: book.category });
-        }
-    });
-    return results;
-}
-
-// פונקציה חדשה לטעינת פרופיל המשתמש מהענן
-async function loadUserProfile() {
-    try {
-        const { data: userData, error } = await supabaseClient
-            .from('users')
-            .select('*')
-            .eq('email', currentUser.email)
-            .single();
-
-        if (userData && !error) {
-            // עדכון הפרופיל המקומי עם נתונים מהענן
-            currentUser.displayName = userData.display_name || currentUser.displayName;
-            currentUser.phone = userData.phone || '';
-            currentUser.city = userData.city || '';
-            currentUser.address = userData.address || '';
-            currentUser.age = userData.age || null;
-            currentUser.isAnonymous = userData.is_anonymous || false;
-            currentUser.subscription = userData.subscription || { amount: 0, level: 0, name: '' }; // טעינת מנוי
-            currentUser.security_questions = userData.security_questions || [];
-            currentUser.password = userData.password || ''; // שמירה מקומית של הסיסמה (לא מומלץ בדרך כלל, אך נדרש לניהול פשוט כאן)
-            currentUser.reward_points = userData.reward_points || 0;
-            currentUser.marketing_consent = userData.marketing_consent || false;
-
-            // שמירה מקומית
-            localStorage.setItem('torahApp_user', JSON.stringify(currentUser));
-
-            // עדכון UI של הפרופיל
-            updateProfileUI();
-        }
-    } catch (e) {
-        console.error("שגיאה בטעינת פרופיל:", e);
-    }
-}
-
-// פונקציה לעדכון השדות בעמוד הפרופיל
-function updateProfileUI() {
-    const nameInput = document.getElementById('profileName');
-    const phoneInput = document.getElementById('profilePhone');
-    const cityInput = document.getElementById('profileCity');
-    const addressInput = document.getElementById('profileAddress');
-    const ageInput = document.getElementById('profileAge');
-    const anonSwitch = document.getElementById('anonSwitch');
-    const secQInput = document.getElementById('profileSecQ');
-    const secAInput = document.getElementById('profileSecA');
-
-    if (nameInput) nameInput.value = currentUser.displayName || '';
-    if (phoneInput) phoneInput.value = currentUser.phone || '';
-    if (ageInput) ageInput.value = currentUser.age || '';
-    if (cityInput) cityInput.value = currentUser.city || '';
-    if (addressInput) addressInput.value = currentUser.address || '';
-    if (anonSwitch) anonSwitch.checked = currentUser.isAnonymous || false;
-
-    if (currentUser.security_questions && currentUser.security_questions.length > 0) {
-        if (secQInput) secQInput.value = currentUser.security_questions[0].q || '';
-        if (secAInput) secAInput.value = currentUser.security_questions[0].a || '';
-    }
-}
-
-// פונקציה לעדכון הערות מה-iframe
-window.updateGoalNotes = async function (goalId, newNotes) {
-    const goal = userGoals.find(g => g.id == goalId);
-    if (goal) {
-        goal.notes = newNotes;
-        saveGoals();
-
-        // שמירה לענן
-        try {
-            await supabaseClient.from('user_goals').update({ notes: newNotes }).eq('id', goalId);
-        } catch (e) { console.error("Error saving notes to cloud", e); }
-    }
-};
-
-// תיקון loadGoals - טעינה מהענן
-async function loadGoals() {
-    // 1. טעינה מיידית מ-LocalStorage (ללא המתנה לרשת)
-    const localGoals = localStorage.getItem('torahApp_goals');
-    if (localGoals) {
-        userGoals = JSON.parse(localGoals);
-        renderGoals(); // רינדור מיידי למסך
-    }
-
-    try {
-        // ניסיון לטעון מהענן
-        const { data: cloudGoals, error } = await supabaseClient
-            .from('user_goals')
-            .select('*')
-            .eq('user_email', currentUser.email);
-
-
-        // אם יש נתונים מהענן, נעדכן את המידע המקומי ונרנדר מחדש
-        if (cloudGoals && !error) {
-            // המיזוג והעדכון המורכב יותר מתבצע ב-syncGlobalData
-            // כאן רק נדאג שהנתונים המעודכנים ביותר מהענן יהיו זמינים
-            // ונרנדר מחדש כדי לשקף אותם
-            await syncGlobalData(); // מפעיל את הלוגיקה המלאה של הסנכרון
-        }
-    } catch (e) {
-        console.error("שגיאה בטעינת לימודים:", e);
-    }
-}
-
-function toggleAuthMode(mode) {
-    document.getElementById('btn-login-mode').className = `auth-toggle-btn ${mode === 'login' ? 'active' : ''}`;
-    document.getElementById('btn-signup-mode').className = `auth-toggle-btn ${mode === 'signup' ? 'active' : ''}`;
-
-    document.getElementById('login-form').style.display = mode === 'login' ? 'block' : 'none';
-    document.getElementById('signup-form').style.display = mode === 'signup' ? 'block' : 'none';
-}
-
-// עדכון handleLogin
-async function handleLogin(e) {
-    e.preventDefault();
-    const email = document.getElementById('emailInput').value.trim().toLowerCase();
-    const pass = document.getElementById('passInput').value;
-
-    if (!email || !pass) {
-        await customAlert("נא להזין אימייל וסיסמה");
-        return;
-    }
-
-    try {
-        // בדיקה מול השרת
-        const { data: user, error } = await supabaseClient
-            .from('users')
-            .select('*')
-            .eq('email', email)
-            .single();
-
-        if (error && error.code !== 'PGRST116') { // שגיאה שאינה "לא נמצא"
-            await customAlert("שגיאת תקשורת: " + error.message);
-            return;
-        }
-
-        if (user) {
-            // בדיקת חסימה
-            if (user.is_banned) {
-                document.getElementById('auth-overlay').style.display = 'none';
-                document.getElementById('banned-overlay').style.display = 'flex';
-                localStorage.setItem('device_banned', 'true'); // חסימת מכשיר
-                sessionStorage.setItem('banned_email', email); // שמירת אימייל לערעור
-                return;
-            }
-
-            // משתמש קיים - בדיקת סיסמה
-            if (user.password !== pass) {
-                const randomJoke = JOKES[Math.floor(Math.random() * JOKES.length)];
-                await customAlert(randomJoke);
-                return;
-            }
-
-            // הגדרת המשתמש הנוכחי
-            currentUser = mapUserFromDB(user);
-
-        } else {
-            await customAlert("משתמש לא קיים. אנא הירשם.");
-            toggleAuthMode('signup');
-            return;
-        }
-
-        // המשך תהליך ההתחברות הרגיל
-        localStorage.setItem('torahApp_user', JSON.stringify(currentUser));
-        document.getElementById('auth-overlay').style.display = 'none';
-        switchScreen('dashboard', document.querySelector('.nav-item'));
-
-        if ("Notification" in window && Notification.permission !== "granted") {
-            Notification.requestPermission();
-        }
-        setTimeout(checkDailyReminders, 5000);
-        setInterval(checkChavrutaReminders, 60000);
-
-        updateHeader();
-
-        // טעינה אסינכרונית
-        await loadUserProfile();
-        await loadGoals();
-        await loadSchedules();
-        await syncGlobalData();
-        notificationsEnabled = true;
-        loadAds();
-        sendHeartbeat();
-        setupRealtime();
-        logVisit(); // Log visitor
-
-        addNotification("ברוך הבא לבית המדרש! בהצלחה בלימוד.");
-
-    } catch (e) {
-        console.error("Login Error:", e);
-        await customAlert("אירעה שגיאה בהתחברות.");
-    }
-}
-
-async function handleSignup(e) {
-    e.preventDefault();
-    const email = document.getElementById('regEmail').value.trim().toLowerCase();
-    const pass = document.getElementById('regPass').value;
-    const name = document.getElementById('regName').value;
-    const phone = document.getElementById('regPhone').value;
-    const city = document.getElementById('regCity').value;
-    const age = document.getElementById('regAge').value;
-    const address = document.getElementById('regAddress').value;
-    const q1 = document.getElementById('regSecQ1').value;
-    const a1 = document.getElementById('regSecA1').value;
-    const marketing = document.getElementById('regMarketing').checked;
-
-    if (!email || !pass || !name || !q1 || !a1) {
-        await customAlert("נא למלא את כל שדות החובה");
-        return;
-    }
-
-    if (!validateInput(email, 'email')) return customAlert("כתובת האימייל אינה תקינה.");
-    if (!validateInput(pass, 'password')) return customAlert("הסיסמה חייבת להכיל לפחות 6 תווים, כולל אותיות ומספרים.");
-    if (!validateInput(name, 'name')) return customAlert("השם אינו תקין.");
-    if (phone && !validateInput(phone, 'phone')) return customAlert("מספר הטלפון אינו תקין.");
-
-    if (!email || !pass || !name || !q1 || !a1) {
-        await customAlert("נא למלא את כל שדות החובה");
-        return;
-    }
-
-    try {
-        // בדיקה אם קיים
-        const { data: existing } = await supabaseClient.from('users').select('email').eq('email', email).single();
-        if (existing) {
-            await customAlert("כתובת האימייל כבר רשומה במערכת.");
-            return;
-        }
-
-        const securityQuestions = [{ q: q1, a: a1 }];
-
-        const newUser = {
-            email: email,
-            password: pass,
-            display_name: name,
-            phone: phone,
-            city: city,
-            age: age ? parseInt(age) : null,
-            address: address,
-            security_questions: securityQuestions,
-            last_seen: new Date(),
-            subscription: { amount: 0, level: 0, name: '' },
-            marketing_consent: marketing
-
-        };
-
-        const { error } = await supabaseClient.from('users').insert([newUser]);
-
-        if (error) throw error;
-
-        // התחברות אוטומטית לאחר הרשמה
-        currentUser = mapUserFromDB({
-            email: email,
-            display_name: name,
-            phone: phone,
-            city: city,
-            age: age ? parseInt(age) : null,
-            address: address,
-            security_questions: securityQuestions,
-            subscription: { amount: 0, level: 0, name: '' },
-            reward_points: 0,
-            marketing_consent: marketing
-        });
-
-        localStorage.setItem('torahApp_user', JSON.stringify(currentUser));
-        document.getElementById('auth-overlay').style.display = 'none';
-        updateHeader();
-        await init(); // אתחול המערכת עם המשתמש החדש
-        switchScreen('dashboard', document.querySelector('.nav-item'));
-        showToast("החשבון נוצר בהצלחה! ברוך הבא.", "success");
-
-    } catch (e) {
-        console.error(e);
-        await customAlert("שגיאה ביצירת חשבון: " + e.message);
-    }
-}
-
-async function handleForgotPassword() {
-    const email = await customPrompt("הזן את כתובת האימייל שלך לשחזור:");
-    if (!email) return;
-
-    try {
-        const { data: user, error } = await supabaseClient.from('users').select('*').eq('email', email.toLowerCase()).single();
-
-        if (error || !user) {
-            await customAlert("משתמש לא נמצא.");
-            return;
-        }
-
-        if (!user.security_questions || user.security_questions.length === 0) {
-            await customAlert("לא הוגדרו שאלות אבטחה לחשבון זה. פנה למנהל.");
-            return;
-        }
-
-        const q = user.security_questions[0];
-        const ans = await customPrompt(`שאלת אבטחה: ${q.q}`);
-
-        if (ans === q.a) {
-            const newPass = await customPrompt("הזן סיסמה חדשה:");
-            if (newPass) {
-                await supabaseClient.from('users').update({ password: newPass }).eq('email', email);
-                await customAlert("הסיסמה שונתה בהצלחה!");
-            }
-        } else {
-            await customAlert("תשובה שגויה.");
-        }
-    } catch (e) {
-        console.error(e);
-        await customAlert("שגיאה בתהליך השחזור.");
-    }
-}
-
-function mapUserFromDB(user) {
-    return {
-        email: user.email,
-        displayName: user.display_name || user.email.split('@')[0],
-        isAnonymous: user.is_anonymous,
-        phone: user.phone || '',
-        city: user.city || '',
-        address: user.address || '',
-        age: user.age || null,
-        subscription: user.subscription || { amount: 0, level: 0, name: '' },
-        security_questions: user.security_questions || [],
-        password: user.password,
-        reward_points: user.reward_points || 0,
-        marketing_consent: user.marketing_consent || false
-    };
-}
-
-function updateHeader() {
-    document.getElementById('headerUserEmail').innerText = currentUser.displayName || currentUser.email;
-
-    // עדכון הילת הפרופיל בהאדר
-    const btn = document.getElementById('headerProfileBtn');
-    // הסרת כל מחלקות ההילה הקודמות
-    for (let i = 1; i <= 7; i++) btn.classList.remove(`aura-lvl-${i}`);
-
-    if (currentUser.subscription && currentUser.subscription.level > 0) {
-        btn.classList.add(`aura-lvl-${currentUser.subscription.level}`);
-        // הוספת טייטל
-        btn.title = `מנוי: ${currentUser.subscription.name}`;
-    }
-}
-
-async function updateFollowersCount() {
-    if (!currentUser) return;
-
-    // טעינה מיידית מהזכרון
-    const cached = localStorage.getItem('torahApp_followersCount');
-    const badge = document.getElementById('followersCountBadge');
-    if (badge && cached) badge.innerText = cached;
-
-    const { count } = await supabaseClient.from('user_followers').select('*', { count: 'exact', head: true }).eq('following_email', currentUser.email);
-
-    if (badge) badge.innerText = count || 0;
-    localStorage.setItem('torahApp_followersCount', count || 0);
-}
-
-function logout() { localStorage.removeItem('torahApp_user'); location.reload(); }
-
-function logoutBot() {
-    if (realAdminUser) {
-        currentUser = realAdminUser;
-        realAdminUser = null;
-        localStorage.setItem('torahApp_user', JSON.stringify(currentUser));
-
-        // רענון מלא של הנתונים כדי להחזיר את המצב לקדמותו
-        userGoals = [];
-        chavrutaConnections = [];
-
-        location.reload();
-    }
-}
-
-// פונקציה לבדיקת תזכורות ושליחת התראה למחשב
 function checkDailyReminders() {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
 
@@ -730,6 +124,7 @@ function checkDailyReminders() {
 
 // בדיקת תזכורות חברותא
 function checkChavrutaReminders() {
+    if (!currentUser) return;
     const now = new Date();
     const currentDay = now.getDay();
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
@@ -747,13 +142,6 @@ function checkChavrutaReminders() {
     }
 }
 
-function getRankName(score) {
-    if (score >= 1001) return "תלמיד חכם";
-    if (score >= 501) return "צורבא מרבנן";
-    if (score >= 101) return "מתמיד";
-    return "צורב צעיר";
-}
-
 function getUserBadgeHtml(user) {
     if (user.subscription && user.subscription.level > 0) {
         const tier = SUBSCRIPTION_TIERS.find(t => t.level === user.subscription.level);
@@ -768,107 +156,8 @@ function getUserBadgeHtml(user) {
 let bookSearchDebounce;
 let selectedBookStructure = null;
 
-async function handleBookSearch(query) {
-    const list = document.getElementById('bookSearchResults');
-    if (query.length < 2) {
-        list.style.display = 'none';
-        return;
-    }
-
-    clearTimeout(bookSearchDebounce);
-    bookSearchDebounce = setTimeout(async () => {
-        try {
-            const res = await fetch(`https://www.sefaria.org.il/api/name/${query}?limit=10&lang=he`);
-            const data = await res.json();
-            list.innerHTML = '';
-            if (data.completions && data.completions.length > 0) {
-                list.style.display = 'block';
-                data.completions.forEach(book => {
-                    const li = document.createElement('li');
-                    li.style.padding = '8px'; li.style.borderBottom = '1px solid #eee'; li.style.cursor = 'pointer';
-                    li.innerText = book;
-                    li.onclick = () => selectBookFromSearch(book);
-                    list.appendChild(li);
-                });
-            }
-        } catch (e) { console.error(e); }
-    }, 300);
-}
-
-async function selectBookFromSearch(bookName) {
-    document.getElementById('newBookSearch').value = bookName;
-    document.getElementById('bookSearchResults').style.display = 'none';
-    document.getElementById('bookDetailsArea').style.display = 'block';
-
-    // טעינת מבנה הספר (פרקים)
-    try {
-        const res = await fetch(`https://www.sefaria.org.il/api/v2/raw/index/${bookName}`);
-        const data = await res.json();
-        selectedBookStructure = data;
-
-        // איפוס בחירה
-        document.getElementById('bookScopeSelect').value = 'full';
-        handleScopeChange();
-
-        // הערכת כמות דפים/יחידות (ברירת מחדל)
-        // ננסה לקחת את ה-length מה-shape או להעריך
-        let estimatedUnits = 50; // ברירת מחדל
-        if (data.schema && data.schema.sectionNames) {
-            // לוגיקה פשוטה להערכה, בפועל ספריא נותן shape ב-API אחר, אבל נשתמש בזה כבסיס
-            // אם זה תלמוד, ננסה למצוא במסד הנתונים המקומי שלנו
-            const found = BOOKS_DB.find(b => b.name === bookName);
-            if (found) estimatedUnits = found.units;
-        }
-        document.getElementById('calculatedUnits').value = estimatedUnits;
-
-    } catch (e) {
-        console.error("Error fetching book structure", e);
-        document.getElementById('calculatedUnits').value = 100; // Fallback
-    }
-}
-
-function handleScopeChange() {
-    const scope = document.getElementById('bookScopeSelect').value;
-    const chapterDiv = document.getElementById('chapterSelectDiv');
-    const chapterSelect = document.getElementById('chapterSelect');
-
-    if (scope === 'chapter') {
-        chapterDiv.style.display = 'block';
-        chapterSelect.innerHTML = '';
-
-        if (selectedBookStructure && selectedBookStructure.schema) {
-            // ניסיון לזהות מבנה פרקים
-            // בדרך כלל nodeType 'JaggedArrayNode'
-            // אנו נניח מבנה שטוח של פרקים לצורך הפשטות
-            // או ניצור רשימה גנרית של 1-100 אם אין מידע מדויק
-
-            // בדיקה אם יש שמות לפרקים (כמו במסכתות אבות)
-            let chaptersCount = 20; // ברירת מחדל
-            // אם יש לנו shape ב-API (לא תמיד זמין ב-raw/index), נשתמש בו.
-            // כאן נשתמש בלוגיקה גנרית:
-            for (let i = 1; i <= 50; i++) {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.innerText = `פרק ${i}`;
-                chapterSelect.appendChild(opt);
-            }
-        }
-        updateCalculatedUnits();
-    } else {
-        chapterDiv.style.display = 'none';
-        // שחזור כמות מלאה
-        if (document.getElementById('newBookSearch').value) {
-            // נסה למצוא שוב ב-DB המקומי
-            const bookName = document.getElementById('newBookSearch').value;
-            let units = 50;
-            const found = BOOKS_DB.find(b => b.name === bookName);
-            if (found) units = found.units;
-            document.getElementById('calculatedUnits').value = units;
-        }
-    }
-}
-
 function updateCalculatedUnits() {
+    if (!requireAuth()) return;
     const scope = document.getElementById('bookScopeSelect').value;
     if (scope === 'chapter') {
         // הערכה לפרק בודד
@@ -876,424 +165,17 @@ function updateCalculatedUnits() {
     }
 }
 
-async function addQuickLog() {
-    const bookName = document.getElementById('quickType').value;
-    const amount = parseInt(document.getElementById('quickAmount').value);
-    const dedication = document.getElementById('quickDedication').value;
-
-    // נתונים חדשים לתכנון זמן
-    const paceType = document.getElementById('quickPace').value;
-    const dateInput = document.getElementById('quickDateInput').value;
-    let targetDate = "";
-
-    if (paceType === 'date' && dateInput) {
-        targetDate = dateInput;
-    }
-
-    if (!bookName || !amount || amount <= 0) {
-        await customAlert("נא להזין שם ספר וכמות דפים תקינה");
-        return;
-    }
-
-    createGoal(bookName, amount, targetDate, dedication);
-
-    // איפוס שדות
-    document.getElementById('quickAmount').value = '';
-    document.getElementById('quickDedication').value = '';
-    document.getElementById('quickDateInput').value = '';
-    document.getElementById('quickHebrewDate').innerText = '';
-}
-
-// פונקציה לעדכון סטטוס מחובר (Heartbeat)
-
-
-// משתנה חדש לשמירת רשימת החברים המאושרים
-let chavrutaConnections = JSON.parse(localStorage.getItem('torahApp_chavrutas') || "[]");
-let approvedPartners = new Set(chavrutaConnections.map(c => c.email));
-let pendingSentRequests = [];
-
-
-// פונקציה לבדיקת בקשות ממתינות (יש לקרוא לה מתוך syncGlobalData או setInterval)
-async function checkIncomingRequests() {
-    if (!currentUser) return;
-
-    // משיכת בקשות שבהן אני הנמען (receiver) והסטטוס הוא 'pending'
-    const { data: requests, error } = await supabaseClient
-        .from('chavruta_requests')
-        .select('*')
-        .eq('receiver_email', currentUser.email)
-        .eq('status', 'pending');
-
-    if (requests && requests.length > 0) {
-        requests.forEach(req => {
-            const senderUser = globalUsersData.find(u => u.email === req.sender_email);
-            const senderName = senderUser ? senderUser.name : req.sender_email;
-
-            const htmlContent = `
-                <div style="font-weight:bold; font-size:0.9rem;">בקשת חברותא חדשה!</div>
-                <div style="font-size:0.85rem; margin-bottom:5px;">
-                    המשתמש <strong>${senderName}</strong> רוצה ללמוד איתך את <em>${req.book_name}</em>.
-                </div>
-                <div style="display:flex; gap:5px; flex-wrap:wrap;">
-                    <button class="btn" style="background:#3b82f6; font-size:0.8rem; padding:4px; flex:1;" 
-                        onclick="showUserDetails('${req.sender_email}')">צפה בפרופיל</button>
-                    <button class="btn" style="background:#16a34a; font-size:0.8rem; padding:4px; flex:1;" 
-                        onclick="respondToRequest('${req.id}', 'approved')">אשר</button>
-                    <button class="btn" style="background:#ef4444; font-size:0.8rem; padding:4px; flex:1;" 
-                        onclick="respondToRequest('${req.id}', 'rejected')">דחה</button>
-                </div>
-            `;
-            addNotification(htmlContent, `req-${req.id}`, true);
-        });
-    }
-}
-
-// פונקציה לטיפול באישור/דחייה
-async function respondToRequest(reqId, action) {
-    try {
-        const { error } = await supabaseClient
-            .from('chavruta_requests')
-            .update({ status: action })
-            .eq('id', reqId);
-
-        if (error) throw error;
-
-        showToast(action === 'approved' ? "הבקשה אושרה! כעת ניתן לראות פרטי קשר." : "הבקשה נדחתה.", action === 'approved' ? "success" : "info");
-
-        if (action === 'approved') {
-            // שליפת פרטי הבקשה כדי להוסיף את הלימוד אצלי אם חסר
-            const { data: reqData } = await supabaseClient.from('chavruta_requests').select('*').eq('id', reqId).single();
-            if (reqData) {
-                const exists = userGoals.some(g => g.bookName === reqData.book_name && g.status === 'active');
-                if (!exists) {
-                    await createGoal(reqData.book_name, 100, null, "לימוד עם חברותא"); // יצירת לימוד אוטומטית
-                    showToast(`הספר ${reqData.book_name} נוסף לרשימת הלימוד שלך`, "success");
-                }
-                // הוספה לרשימת החברים המאושרים מקומית
-                const partnerEmail = reqData.sender_email === currentUser.email ? reqData.receiver_email : reqData.sender_email;
-                approvedPartners.add(partnerEmail);
-                chavrutaConnections.push({ email: partnerEmail, book: reqData.book_name });
-                renderChavrutas();
-            }
-        }
-
-        // רענון הנתונים כדי לעדכן את רשימת החברים המאושרים
-        document.getElementById('notif-list').innerHTML = '<p style="color:#999; text-align:center;">אין הודעות חדשות</p>';
-        document.getElementById('notif-badge').style.display = 'none';
-        renderChavrutas();
-        setTimeout(syncGlobalData, 2000);
-
-    } catch (e) {
-        console.error(e);
-        await customAlert("שגיאה בעדכון הבקשה.");
-    }
-}
-
-
-async function adminWipeAllData() {
-    const pass = await customPrompt("⚠️ אזהרה: פעולה זו תמחק את כל הנתונים באתר (משתמשים, צ'אטים, הישגים וכו')!\nהטבלאות עצמן יישארו.\n\nכדי לאשר, הקלד 'מחק הכל':");
-    if (pass !== 'מחק הכל') return;
-
-    const confirm2 = await customConfirm("האם אתה בטוח ב-100%? אין דרך חזרה.");
-    if (!confirm2) return;
-
-    showToast("מתחיל במחיקת נתונים...", "info");
-
-    try {
-        // מחיקת נתונים מטבלאות קשורות תחילה
-        const tables = ['message_reactions', 'book_chat_reactions', 'siyum_reactions', 'chat_messages', 'book_chats', 'user_followers', 'user_inventory', 'user_goals', 'siyum_board', 'chavruta_requests', 'schedules', 'user_reports', 'user_consents', 'site_visits', 'suggestions', 'system_announcements', 'cookie_consents', 'ad_stats'];
-
-        for (const table of tables) {
-            await supabaseClient.from(table).delete().neq('id', 0); // מחיקת כל השורות
-        }
-
-        // מחיקת משתמשים (למעט המנהל הנוכחי כדי לא לנתק)
-        if (currentUser) {
-            await supabaseClient.from('users').delete().neq('email', currentUser.email);
-        }
-
-        showToast("כל הנתונים נמחקו בהצלחה.", "success");
-        setTimeout(() => location.reload(), 2000);
-    } catch (e) {
-        console.error("Wipe error:", e);
-        await customAlert("אירעה שגיאה במחיקת הנתונים: " + e.message);
-    }
-}
-
-async function addNewGoal() {
-    // זיהוי האלמנטים במסך
-    const bookSelectEl = document.getElementById('bookSelect');
-    const customNameEl = document.getElementById('customNameInput');
-    const customAmountEl = document.getElementById('customAmountInput');
-    // const sefariaInput = document.getElementById('sefariaSearchInput'); // Removed
-
-    const dateEl = document.getElementById('targetDateInput');
-    const dedicationEl = document.getElementById('dedicationInput');
-    const quickTypeEl = document.getElementById('quickType'); // למקרה של הוספה מהירה
-    const quickAmountEl = document.getElementById('quickAmount');
-
-    let bookName = "";
-    let totalUnits = 0;
-    let targetDate = "";
-
-    // בדיקה: האם זו הוספה מהירה (מהכרטיס העליון) או רגילה?
-    if (quickAmountEl && quickAmountEl.value) {
-        bookName = quickTypeEl.value;
-        totalUnits = parseInt(quickAmountEl.value);
-        if (document.getElementById('quickDedication').value) {
-            // טיפול בהקדשה מהירה אם צריך
-        }
-    } else {
-        // הוספה רגילה מהטופס הגדול
-
-        if (bookSelectEl && bookSelectEl.value) {
-            // בחירה מרשימה קיימת (צריך לפענח את ה-JSON)
-            try {
-                const bookData = JSON.parse(bookSelectEl.value);
-                bookName = bookData.name;
-                totalUnits = bookData.units;
-            } catch (e) {
-                console.error("Error parsing book data", e);
-                bookName = bookSelectEl.value;
-                // אם אין יחידות, ננסה לחפש שדה אחר או נבקש מהמשתמש (כאן נניח 0 כברירת מחדל אם נכשל)
-                totalUnits = 50;
-            }
-        } else if (customNameEl && customNameEl.value) {
-            bookName = customNameEl.value;
-            totalUnits = parseInt(customAmountEl.value) || 50;
-        }
-
-        if (document.getElementById('paceType').value === 'date') {
-            targetDate = dateEl.value;
-        }
-    }
-
-    // בדיקות תקינות
-    if (!bookName || !totalUnits || totalUnits <= 0) {
-        await customAlert("נא לוודא שנבחר ספר/הוזן שם וכמות יחידות תקינה");
-        return;
-    }
-
-    // יצירת האובייקט
-    const newGoal = {
-        id: Date.now().toString(),
-        bookName: bookName,
-        totalUnits: totalUnits,
-        currentUnit: 0,
-        status: 'active',
-        startDate: new Date().toISOString(),
-        targetDate: targetDate, // הוספנו תאריך יעד
-        dedication: dedicationEl ? dedicationEl.value : ""
-    };
-
-    // שמירה ועדכון
-    userGoals.unshift(newGoal); // הוספה לראש הרשימה
-    localStorage.setItem('torahApp_goals', JSON.stringify(userGoals)); // או השם שאתה משתמש בו לשמירה
-    saveGoals(); // פונקציית העזר שלך לשמירה
-
-    // סימון להבהוב (לפני הרינדור)
-    window.newGoalId = newGoal.id;
-    window.isNewGoalAnimation = true; // דגל לאנימציה מיוחדת
-
-    renderGoals(); // רענון המסך
-
-    // איפוס שדות
-    if (customNameEl) customNameEl.value = '';
-    if (customAmountEl) customAmountEl.value = '';
-
-    if (quickAmountEl) quickAmountEl.value = '';
-    showToast("הלימוד נוסף בהצלחה!", "success");
-
-    // מעבר ללוח הבקרה
-    switchScreen('dashboard', document.querySelectorAll('.nav-item')[0]); // מעבר לבית (אינדקס 0)
-
-    // שמירה בענן (Supabase)
-    try {
-        if (typeof supabaseClient !== 'undefined' && currentUser && currentUser.email) {
-            await supabaseClient.from('user_goals').insert([{
-                id: newGoal.id,
-                user_email: currentUser.email,
-                book_name: bookName,
-                total_units: totalUnits,
-                current_unit: 0,
-                status: 'active',
-                target_date: targetDate || null
-            }]);
-        }
-    } catch (e) {
-        console.log("נשמר מקומית בלבד");
-        console.error("שגיאת שמירה בענן:", e); // הדפסת השגיאה לניפוי באגים
-    }
-}
-
-async function sendChavrutaRequest(receiverEmail, bookName) {
-    if (!currentUser) return await customAlert("עליך להיות מחובר");
-
-    try {
-        console.log("שולח בקשה:", { receiverEmail, bookName });
-
-        const { error } = await supabaseClient
-            .from('chavruta_requests')
-            .insert([{
-                sender_email: currentUser.email,
-                receiver_email: receiverEmail,
-                book_name: bookName,
-                status: 'pending'
-            }]);
-
-        if (error) throw error;
-
-        showToast("בקשת החברותא נשלחה בהצלחה!", "success");
-        document.getElementById('chavrutaModal').style.display = 'none';
-    } catch (e) {
-        console.error("שגיאה בשליחת הבקשה:", e);
-        await customAlert("נכשל בשליחת הבקשה: " + (e.message || "שגיאה לא ידועה"));
-    }
-}
-
-async function createGoal(name, total, targetDate, dedication) {
-    // 1. יצירת האובייקט
-    const newGoal = {
-        id: Date.now().toString(),
-        bookName: name,
-        totalUnits: total,
-        currentUnit: 0,
-        targetDate: targetDate || '',
-        status: 'active',
-        dedication: dedication || ''
-    };
-
-    // 2. הוספה לרשימה המקומית ורענון
-    userGoals.unshift(newGoal); // הוספה לראש הרשימה
-    saveGoals();
-
-    window.newGoalId = newGoal.id;
-    window.isNewGoalAnimation = true;
-
-    renderGoals(); // חשוב מאוד כדי שיופיע מיד במסך!
-
-    // 3. מעבר אוטומטי ללוח הבקרה כדי לראות את התוצאה
-    switchScreen('dashboard', document.querySelectorAll('.nav-item')[0]); // מעבר לבית (אינדקס 0)
-
-    // 4. שמירה ב-Supabase
-    try {
-        if (typeof supabaseClient !== 'undefined' && currentUser) {
-            await supabaseClient.from('user_goals').insert([{
-                id: newGoal.id,
-                user_email: currentUser.email,
-                book_name: name,
-                total_units: total,
-                current_unit: 0,
-                status: 'active',
-                target_date: targetDate || null
-            }]);
-        }
-    } catch (e) {
-        console.error("שגיאה בסנכרון ענן, אך נשמר מקומית:", e);
-    }
-} async function joinCycle(cycleType) {
-    const cycles = { 'daf-yomi': ["דף היומי", 2711], 'mishnah': ["משנה יומית", 4192], 'rambam': ["רמב\"ם יומי", 1000], 'halacha': ["הלכה יומית", 1000] };
-    await createGoal(cycles[cycleType][0], cycles[cycleType][1], null, "מחזור לימוד קבוע", "");
-    showToast("הצטרפת בהצלחה!", "success");
-}
-// === רינדור ותצוגה ===
-function renderGoals() {
-    const list = document.getElementById('goalsList');
-    const tasksList = document.getElementById('dailyTasksList');
-    const archiveList = document.getElementById('archiveList');
-    if (!list || !tasksList || !archiveList) return;
-
-    list.innerHTML = ''; tasksList.innerHTML = ''; archiveList.innerHTML = '';
-    let hasTasks = false, totalLearned = 0;
-
-    userGoals.forEach(goal => {
-        if (goal.status === 'active') {
-            renderGoalCard(goal, list, true);
-            totalLearned += goal.currentUnit;
-
-            if (goal.targetDate) {
-                hasTasks = true;
-                const days = Math.max(1, Math.ceil((new Date(goal.targetDate) - new Date()) / 86400000));
-                const totalLeft = goal.totalUnits - goal.currentUnit;
-                const dailyTarget = (totalLeft / days).toFixed(1);
-
-                const taskDiv = document.createElement('div');
-                taskDiv.className = 'task-row';
-
-                // בדיקה אם המשימה היומית הושלמה (לפי חישוב פשוט של התקדמות)
-                if (totalLeft <= 0) {
-                    taskDiv.innerHTML = `<div><strong>${goal.bookName}</strong></div><span class="task-highlight" style="background:#dcfce7; color:#16a34a;">סיימת את הספר!</span>`;
-                } else {
-                    taskDiv.innerHTML = `<div><strong>${goal.bookName}</strong></div><span class="task-highlight">יעד יומי: ${dailyTarget}</span>`;
-                }
-                tasksList.appendChild(taskDiv);
-            }
-        } else {
-            renderGoalCard(goal, archiveList, false);
-            totalLearned += goal.totalUnits;
-        }
-    });
-
-    updateRankProgressBar(totalLearned);
-    document.getElementById('dailyTasksContainer').style.display = hasTasks ? 'block' : 'none';
-    document.getElementById('stat-books').innerText = userGoals.filter(g => g.status === 'active').length;
-    document.getElementById('stat-pages').innerText = totalLearned;
-    document.getElementById('stat-completed').innerText = userGoals.filter(g => g.status === 'completed').length;
-    // Rating is updated via loadChatRating called in syncGlobalData
-}
-
-
-async function updateRankProgressBar(score) {
-    let currentRank = getRankName(score);
-
-    if (notificationsEnabled && currentUser && previousRank && currentRank !== previousRank) {
-        const rankOrder = { "צורב צעיר": 0, "מתמיד": 1, "צורבא מרבנן": 2, "תלמיד חכם": 3 };
-        if (rankOrder[currentRank] > rankOrder[previousRank]) {
-            confetti({ particleCount: 400, spread: 120, origin: { y: 0.6 } });
-            const msg = `👑 ברכות! עלית לדרגת ${currentRank}!`;
-            addNotification(msg);
-            showToast(msg, "success");
-            // Add reward points
-            await supabaseClient.rpc('increment_field', { table_name: 'users', field_name: 'reward_points', increment_value: 100, user_email: currentUser.email });
-        }
-    }
-    previousRank = currentRank;
-
-    let nextRank = "", nextThreshold = 0, prevThreshold = 0;
-    if (score < 101) { nextRank = "מתמיד"; nextThreshold = 101; prevThreshold = 0; }
-    else if (score < 501) { nextRank = "צורבא מרבנן"; nextThreshold = 501; prevThreshold = 101; }
-    else if (score < 1001) { nextRank = "תלמיד חכם"; nextThreshold = 1001; prevThreshold = 501; }
-    else { nextRank = "מאור הדור"; nextThreshold = score; prevThreshold = 0; }
-
-    const rInfo = document.getElementById('rank-info');
-    const rBar = document.getElementById('rank-progress-bar');
-    const rFooter = document.getElementById('rank-footer');
-    if (!rInfo || !rBar) return;
-
-    if (score >= 1001) {
-        rInfo.innerText = `דרגת שיא: ${currentRank}`;
-        rBar.style.width = "100%";
-        rFooter.innerText = "אשריכם! הגעתם לדרגה הגבוהה ביותר.";
-    } else {
-        const progress = ((score - prevThreshold) / (nextThreshold - prevThreshold)) * 100;
-        rInfo.innerText = `דרגה נוכחית: ${currentRank}`;
-        rBar.style.width = `${progress}%`;
-        rFooter.innerText = `עוד ${nextThreshold - score} דפים לדרגת ${nextRank}`;
-    }
-}
 
 function renderLeaderboard() {
     const listContainer = document.getElementById('leaderboardList');
     const meContainer = document.getElementById('leaderboardMeContainer');
-    if (!listContainer) return;
-    listContainer.innerHTML = '';
-    if (meContainer) meContainer.innerHTML = '';
+    if (!listContainer || !meContainer) return;
 
     const cityFilter = document.getElementById('leaderboardCityFilter') ? document.getElementById('leaderboardCityFilter').value.toLowerCase() : '';
     const bookFilter = document.getElementById('leaderboardBookFilter') ? document.getElementById('leaderboardBookFilter').value.toLowerCase() : '';
 
     // 1. קח את כל המשתמשים מהענן, אבל הסר את עצמך משם (לפי אימייל) כדי למנוע כפילות
-    let all = globalUsersData.filter(u => !currentUser || u.email.toLowerCase() !== currentUser.email.toLowerCase());
+    let all = globalUsersData.filter(u => u.email && (!currentUser || u.email.toLowerCase() !== currentUser.email.toLowerCase()));
 
     // 2. הוסף את עצמך ידנית עם הנתונים המקומיים המעודכנים ביותר
     const myScore = userGoals.reduce((sum, g) => sum + g.currentUnit, 0);
@@ -1317,13 +199,16 @@ function renderLeaderboard() {
         return cityMatch && bookMatch;
     });
 
+    let newHTML = '';
+    let myCardHTML = '';
+
     // 3. מיון והצגה
     all.sort((a, b) => {
         if (currentLeaderboardSort === 'rating') {
             return (b.chat_rating || 0) - (a.chat_rating || 0);
         }
         return b.learned - a.learned;
-    }).forEach((u, i) => {
+    }).slice(0, 15).forEach((u, i) => { // הגבלה ל-15 המובילים
         const rank = i + 1;
         // אם זה 'אני', שולחים מזהה מיוחד, אחרת את האימייל
         const idToSend = u.id === 'me' ? 'me' : u.email;
@@ -1333,7 +218,7 @@ function renderLeaderboard() {
 
         // Render Me Card separately if it's me
         if (u.id === 'me' && meContainer) {
-            meContainer.innerHTML = `
+            myCardHTML = `
                 <div class="lb-me-card">
                     <div style="display:flex; align-items:center; gap:1rem;">
                         <div style="color:#ffb700; font-weight:900; font-size:1.25rem; width:2rem; text-align:center;">${rank}</div>
@@ -1365,11 +250,8 @@ function renderLeaderboard() {
             rankColorClass = 'color:#a18745; font-weight:900; font-size:1.25rem; opacity:0.6;';
         }
 
-        const div = document.createElement('div');
-        div.className = 'lb-card';
-        div.style.animationDelay = `${i * 0.05}s`;
-        div.onclick = () => showUserDetails(idToSend);
-        div.innerHTML = `
+        newHTML += `
+        <div class="lb-card" style="animation-delay:${i * 0.05}s" onclick="showUserDetails('${idToSend}')">
             <div style="display:flex; align-items:center; gap:1rem;">
                 <div style="${rankColorClass} width:2rem; text-align:center;">${rank}</div>
                 <div style="position:relative; width:3rem; height:3rem; border-radius:50%; background:#f1f5f9; display:flex; align-items:center; justify-content:center;">
@@ -1385,9 +267,15 @@ function renderLeaderboard() {
                 <p style="font-size:1.125rem; font-weight:bold; color:#1d180c; margin:0; ${rank > 3 ? 'opacity:0.8;' : ''}">${score}</p>
                 <p style="font-size:0.65rem; opacity:0.6; font-weight:bold; text-transform:uppercase; margin:0;">${scoreLabel}</p>
             </div>
-        `;
-        listContainer.appendChild(div);
+        </div>`;
     });
+
+    // עדכון ה-DOM רק אם יש שינוי, למניעת הבהוב
+    if (newHTML !== lastLeaderboardHTML) {
+        listContainer.innerHTML = newHTML;
+        meContainer.innerHTML = myCardHTML;
+        lastLeaderboardHTML = newHTML;
+    }
 }
 
 async function findChavruta(bookName) {
@@ -1428,7 +316,7 @@ async function findChavruta(bookName) {
 
         // סימולציה של שלבי החיפוש (אנימציה)
         for (let i = 0; i < steps.length; i++) {
-            await new Promise(r => setTimeout(r, 800)); // השהיה לאפקט
+            await new Promise(r => setTimeout(r, 1200)); // השהיה לאפקט
             markStepComplete(steps[i].id);
             if (i < steps.length - 1) {
                 activateStep(steps[i + 1].id);
@@ -1444,9 +332,16 @@ async function findChavruta(bookName) {
             if (u.age && currentUser.age && Math.floor(u.age / 10) === Math.floor(currentUser.age / 10)) u.matchScore += 150;
             if (u.city && u.city.trim().toLowerCase() === myCity && myCity) u.matchScore += 100;
             const uLocal = globalUsersData.find(gu => gu.email === u.email);
-            const uScore = uLocal ? uLocal.learned : 0;
-            if (getRankName(uScore) === myRank) u.matchScore += 50;
-            if (Math.random() > 0.7) u.matchScore += 30;
+            if (uLocal) {
+                const uScore = uLocal.learned || 0;
+                if (getRankName(uScore) === myRank) u.matchScore += 50;
+                u.books = uLocal.books || [];
+                if (u.books.includes(bookName)) {
+                    u.matchScore += 30; // 10% of 300 for match score
+                }
+            } else {
+                u.books = [];
+            }
             if (u.display_name && currentUser.displayName && u.display_name[0] === currentUser.displayName[0]) u.matchScore += 10;
         });
 
@@ -1459,36 +354,6 @@ async function findChavruta(bookName) {
         console.error(e);
         stepsContainer.innerHTML = `<div style="text-align:center; color:#ef4444;">שגיאה בחיפוש: ${e.message}</div>`;
     }
-}
-
-function getSearchHTML(bookName) {
-    return `
-        <div class="search-modal-header">
-            <button class="text-slate-400 hover:text-slate-600 transition-colors" style="background:none; border:none; cursor:pointer;" onclick="closeModal()">
-                <span class="material-icons-round" style="font-size:1.5rem;">close</span>
-            </button>
-            <div style="text-align:right;">
-                <h2 style="font-size:1.25rem; font-weight:bold; display:flex; align-items:center; justify-content:flex-end; gap:0.5rem; margin:0;">
-                    מחפשים לך חברותא
-                    <span class="material-icons-round text-primary">auto_awesome</span>
-                </h2>
-                <p style="color:#64748b; margin-top:0.25rem; font-size:0.85rem;">עבור הספר: <strong>${bookName}</strong></p>
-            </div>
-        </div>
-        <div class="search-modal-body">
-            <div class="radar-container">
-                <div class="radar-ping"></div>
-                <div class="radar-pulse"></div>
-                <div class="radar-spinner"></div>
-                <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;">
-                    <div class="bg-primary-10 p-4 rounded-full" style="padding:0.75rem; border-radius:50%;">
-                        <span class="material-icons-round text-primary" style="font-size:2.5rem;">group_add</span>
-                    </div>
-                </div>
-            </div>
-            <div style="width:100%; margin-top:1.5rem; display:flex; flex-direction:column; gap:0.5rem;" id="searchSteps"></div>
-        </div>
-    `;
 }
 
 function markStepComplete(stepId) {
@@ -1513,61 +378,29 @@ function activateStep(stepId) {
 }
 
 function renderChavrutaResults(matches, bookName) {
-    const modalContent = document.querySelector('#chavrutaModal .modal-content');
-
-    let resultsHTML = `
-        <div class="search-modal-header">
-            <button class="text-slate-400 hover:text-slate-600 transition-colors" style="background:none; border:none; cursor:pointer;" onclick="closeModal()">
-                <span class="material-icons-round" style="font-size:1.5rem;">close</span>
-            </button>
-            <div style="text-align:right;">
-                <h2 style="font-size:1.25rem; font-weight:bold; display:flex; align-items:center; justify-content:flex-end; gap:0.5rem; margin:0;">
-                    תוצאות חיפוש
-                    <span class="material-icons-round text-primary">done_all</span>
-                </h2>
-                <p style="color:#64748b; margin-top:0.25rem; font-size:0.85rem;">נמצאו ${matches.length} לומדים מתאימים</p>
-            </div>
-        </div>
-        <div style="padding:1rem; overflow-y:auto; max-height:50vh;">
-    `;
-
-    if (matches.length === 0) {
-        resultsHTML += `<div style="text-align:center; color:#64748b; margin-top:2.5rem;">לא נמצאו תוצאות. נסה שוב מאוחר יותר.</div>`;
-    } else {
-        matches.forEach(user => {
-            const displayName = user.isAnonymous ? "לומד אנונימי" : (user.display_name || user.name || "לומד");
-            const badge = getUserBadgeHtml(user);
-
-            resultsHTML += `
-                <div style="display:flex; align-items:center; justify-content:space-between; background:var(--card-bg); padding:1rem; border-radius:1rem; border:1px solid var(--border-color); margin-bottom:0.75rem; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                    <div style="display:flex; align-items:center; gap:1rem;">
-                        <div style="width:3rem; height:3rem; border-radius:50%; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:1.25rem; color:#64748b;">
-                            ${user.isAnonymous ? '<i class="fas fa-user-secret"></i>' : '<i class="fas fa-user"></i>'}
-                        </div>
-                        <div>
-                            <div style="font-weight:bold; display:flex; align-items:center; gap:0.5rem;">
-                                ${displayName} ${badge}
-                            </div>
-                            <div style="font-size:0.85rem; color:#64748b;">${user.city || 'לא צוין'} • ${user.matchScore} נק' התאמה</div>
-                        </div>
-                    </div>
-                    <button class="btn" style="width:auto; padding:0.5rem 1rem; font-size:0.85rem; border-radius:0.75rem;"
-                        onclick="sendChavrutaRequest('${user.email}', '${bookName}')">
-                        שלח בקשה
-                    </button>
-                </div>
-            `;
-        });
-    }
-
-    resultsHTML += `</div>`;
-    modalContent.innerHTML = resultsHTML;
+    // שמירת התוצאות למשתנה גלובלי לשימוש בדף התוצאות
+    currentChavrutaSearchResults = matches;
+    currentSearchBook = bookName;
+    
+    // סגירת המודאל ומעבר לדף התוצאות
+    closeModal();
+    switchScreen('chavruta-results');
+    
+    // אתחול המסננים ורינדור הדף
+    resetChavrutaFilters();
 }
 
 function closeChavrutaModal() {
     const modal = document.getElementById('chavrutaModal');
     if (modal) {
         modal.style.display = 'none';
+    }
+}
+
+async function findNewChavruta() {
+    const bookName = await customPrompt("לאיזה ספר תרצה לחפש חברותא?");
+    if (bookName && bookName.trim() !== '') {
+        await openChavrutaSearch(bookName.trim());
     }
 }
 
@@ -1600,7 +433,8 @@ async function showUserDetails(uid) {
             city: currentUser.city,
             address: currentUser.address,
             age: currentUser.age,
-            subscription: currentUser.subscription
+            subscription: currentUser.subscription,
+            lastSeen: new Date().toISOString() // For 'me', last seen is now
         };
     } else {
         user = globalUsersData.find(u => u.email && u.email.toLowerCase() === uid.toLowerCase());
@@ -1632,48 +466,69 @@ async function showUserDetails(uid) {
         if (data) isFollowing = true;
     }
 
+    // --- Populate Header ---
     document.getElementById('modalUserName').innerText = user.name;
-    document.getElementById('modalUserRank').innerText = "דרגה: " + getRankName(user.learned);
+    document.getElementById('modalUserRank').innerHTML = `<i class="fas fa-medal" style="margin-left: 5px;"></i> דרגה: ${getRankName(user.learned)}`;
     document.getElementById('modalUserAge').innerText = user.age ? `גיל: ${user.age}` : '';
 
-    // --- הצגת מנוי והילה במודאל ---
+    // --- Subscription & Avatar Aura ---
     const subDiv = document.getElementById('modalUserSubscription');
-    const avatarIcon = document.querySelector('#userModal .fa-user-circle').parentElement;
+    const avatarDiv = document.getElementById('modalUserAvatar');
+    avatarDiv.className = 'relative mb-4'; // Reset aura
+    subDiv.innerHTML = '';
 
-    // איפוס הילה במודאל
-    avatarIcon.className = '';
-    avatarIcon.style.fontSize = '3rem'; avatarIcon.style.marginBottom = '10px'; avatarIcon.style.color = '#cbd5e1';
     if (user.subscription && user.subscription.level > 0) {
-        subDiv.innerHTML = `<div class="subscription-badge" style="background:${SUBSCRIPTION_TIERS.find(t => t.level === user.subscription.level)?.color}20; color:${SUBSCRIPTION_TIERS.find(t => t.level === user.subscription.level)?.color}; border:1px solid currentColor;"><i class="fas fa-crown"></i> ${user.subscription.name}</div>`;
-        avatarIcon.classList.add(`aura-lvl-${user.subscription.level}`, 'aura-base');
-        avatarIcon.style.borderRadius = '50%'; // חשוב להילה עגולה
-    } else {
-        subDiv.innerHTML = '';
+        const tier = SUBSCRIPTION_TIERS.find(t => t.level === user.subscription.level);
+        const color = tier ? tier.color : 'gold';
+        
+        subDiv.innerHTML = `<div class="subscription-badge" style="background:${color}20; color:${color}; border:1px solid currentColor;"><i class="fas fa-crown"></i> ${user.subscription.name}</div>`;
+        
+        // Apply aura to the avatar container
+        avatarDiv.classList.add(`aura-lvl-${user.subscription.level}`, 'aura-base');
+        avatarDiv.style.borderRadius = '50%'; // Ensure roundness for aura effect
     }
 
-    // --- לוגיקת פרטיות ---
-    // האם להציג פרטים מלאים? (אם זה אני, או אם זה חברותא מאושרת)
+    // --- Contact Info & Privacy ---
+    const contactContainer = document.getElementById('modalContactInfo');
     const showFullDetails = (uid === 'me' || approvedPartners.has(user.email));
+    let contactHtml = '';
 
-    // ניצור אלמנט HTML לפרטי הקשר
-    let contactHtml = `<div style="background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.9rem;">`;
+    // City (always visible)
+    contactHtml += `
+        <div class="flex items-center gap-3 text-gray-500 dark:text-slate-400 text-sm">
+            <i class="fas fa-map-marker-alt text-yellow-500"></i>
+            <span class="font-semibold text-gray-800 dark:text-white">עיר:</span>
+            <span>${user.city || 'לא צוין'}</span>
+        </div>`;
 
-    // העיר תמיד מוצגת
-    contactHtml += `<div><i class="fas fa-map-marker-alt" style="width:20px; text-align:center;"></i> <strong>עיר:</strong> ${user.city || 'לא צוין'}</div>`;
-    contactHtml += `<div><i class="fas fa-history" style="width:20px; text-align:center;"></i> <strong>נראה לאחרונה:</strong> ${user.lastSeen ? formatHebrewDate(user.lastSeen) : 'לא ידוע'}</div>`;
+    // Last Seen (always visible)
+    const lastSeenText = user.lastSeen ? timeAgo(user.lastSeen) : 'לא ידוע';
+    const lastSeenTitle = user.lastSeen ? formatHebrewDate(user.lastSeen) : '';
+
+    contactHtml += `
+        <div class="flex items-center gap-3 text-gray-500 dark:text-slate-400 text-sm" title="${lastSeenTitle}">
+            <i class="fas fa-history text-yellow-500"></i>
+            <span class="font-semibold text-gray-800 dark:text-white">פעילות אחרונה:</span>
+            <span>${lastSeenText}</span>
+        </div>`;
 
     if (showFullDetails) {
-        // הצגת פרטים מלאים
         contactHtml += `
-            <div style="margin-top:5px; color:#16a34a;">
-                <i class="fas fa-phone" style="width:20px; text-align:center;"></i> <strong>טלפון:</strong> ${user.phone || 'לא הוזן'}
+            <div class="flex items-center gap-3 text-gray-500 dark:text-slate-400 text-sm">
+                <i class="fas fa-phone text-green-500"></i>
+                <span class="font-semibold text-gray-800 dark:text-white">טלפון:</span>
+                <a class="text-green-600 font-bold hover:underline" href="tel:${user.phone || ''}">${user.phone || 'לא הוזן'}</a>
             </div>
-            ${user.address ? `<div style="margin-top:5px;"><i class="fas fa-home" style="width:20px; text-align:center;"></i> <strong>כתובת:</strong> ${user.address}</div>` : ''}
+            ${user.address ? `
+            <div class="flex items-center gap-3 text-gray-500 dark:text-slate-400 text-sm">
+                <i class="fas fa-home text-yellow-500"></i>
+                <span class="font-semibold text-gray-800 dark:text-white">כתובת:</span>
+                <span>${user.address}</span>
+            </div>` : ''}
         `;
     } else {
-        // הסתרת פרטים
         contactHtml += `
-            <div style="margin-top:8px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:5px;">
+            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-slate-700 text-center text-xs text-slate-500">
                 <i class="fas fa-lock"></i> הטלפון והכתובת חסויים.<br>
                 <small>הפרטים ייחשפו לאחר אישור חברותא הדדי.</small>
             </div>
@@ -1683,171 +538,199 @@ async function showUserDetails(uid) {
     // כפתור מעקב
     if (user.email !== currentUser.email) {
         contactHtml += `
-            <div style="margin-top:10px; text-align:center;">
-                <button id="followBtn" class="btn" style="width:auto; padding:5px 15px; background:${isFollowing ? '#94a3b8' : 'var(--accent)'};" onclick="toggleFollow('${user.email}')">
-                    ${isFollowing ? '<i class="fas fa-user-minus"></i> הסר עוקב' : '<i class="fas fa-user-plus"></i> עקוב'}
-                </button>
-            </div>`;
+            <button id="followBtn" class="w-full mt-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-sm ${isFollowing ? 'bg-gray-200 hover:bg-gray-300 text-gray-700' : 'bg-yellow-500/90 hover:bg-yellow-500 text-white'}" onclick="toggleFollow('${user.email}')">
+                ${isFollowing ? '<i class="fas fa-user-minus"></i> הסר עוקב' : '<i class="fas fa-user-plus"></i> עקוב'}
+            </button>`;
     }
-    contactHtml += `</div>`;
+    contactContainer.innerHTML = contactHtml;
 
-    // הזרקת פרטי הקשר לתוך המודאל (לפני רשימת הספרים)
-    // אנו משתמשים ב-insertAdjacentHTML כדי להוסיף את זה לפני הכותרת "לומד כעת"
-    const list = document.getElementById('modalUserBooks');
+    // --- Book Lists ---
+    const booksContainer = document.getElementById('modalUserBooks');
+    const archiveContainer = document.getElementById('modalUserArchive');
+    const archiveSection = document.getElementById('modalArchiveSection');
 
-    // ניקוי תוכן קודם של פרטי קשר אם קיים (דרך פשוטה היא לנקות את כל האזור ולבנות מחדש)
-    // לצורך פשטות נחליף את ה-HTML של האזור שמעל הספרים
-    // נניח שיש במודאל div שמכיל את המידע. בקוד המקורי זה היה קצת מפוזר.
-    // הפתרון הכי נקי בקוד שלך:
+    booksContainer.innerHTML = '';
+    archiveContainer.innerHTML = '';
 
-    // 1. ננקה את הרשימה
-    list.innerHTML = '';
-
-    // 2. נוסיף את פרטי הקשר כפריט ראשון מיוחד (או נזריק לפני הרשימה אם יש לך אלמנט ייעודי)
-    // הכי בטוח: להוסיף את ה-HTML שיצרנו כ-DIV נפרד לפני ה-UL של הספרים
-    const existingContactDiv = document.getElementById('tempContactDiv');
-    if (existingContactDiv) existingContactDiv.remove(); // מחיקת ישן
-
-    const contactDiv = document.createElement('div');
-    contactDiv.id = 'tempContactDiv';
-    contactDiv.innerHTML = contactHtml;
-    list.parentNode.insertBefore(contactDiv, list.parentNode.firstChild); // הוספה בראש הרשימה
-
-    // --- סיום לוגיקת פרטיות ---
-
-    // מילוי רשימת הספרים
+    // Active books
     if (!user.books || user.books.length === 0) {
-        list.innerHTML += '<li style="color:#999;">לא לומד ספרים כרגע</li>';
+        booksContainer.innerHTML = '<div class="text-center text-sm text-slate-500 p-4">לא לומד ספרים כרגע</div>';
     } else {
         user.books.forEach(b => {
-            const li = document.createElement('li');
-            li.style.display = "flex";
-            li.style.justifyContent = "space-between";
-            li.style.alignItems = "center";
-            li.style.marginBottom = "8px";
-
-            let content = `<span>${b}</span>`;
-
+            let statusHtml = '';
             const isChavruta = chavrutaConnections.some(c => c.email === user.email && c.book === b);
 
             if (isChavruta) {
-                content += ` <span style="font-size:0.7rem; color:green; background:#dcfce7; padding:2px 6px; border-radius:10px;"><i class="fas fa-check"></i> חברותא</span>`;
+                statusHtml = `<span class="bg-green-50 text-green-600 text-xs px-2 py-0.5 rounded-md">חברותא ✓</span>`;
             } else if (user.id !== 'me') {
-                // בדיקה אם אני לומד את הספר הזה
-                const amILearning = userGoals.some(g => g.bookName === b && g.status === 'active');
                 const isPending = pendingSentRequests.some(r => r.receiver === user.email && r.book === b);
-
                 if (isPending) {
-                    content += ` <span style="font-size:0.75rem; color:#f97316;">(בקשה נשלחה)</span>`;
+                    statusHtml = `<span class="text-xs text-orange-500">(בקשה נשלחה)</span>`;
                 } else {
-                    content += ` 
-                     <button class="btn-request" onclick="checkAndSendRequest('${user.email}', '${b}')">
-                        <i class="fas fa-paper-plane"></i> שלח בקשה
+                    statusHtml = `
+                     <button class="bg-blue-50 text-blue-600 text-xs px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-blue-100" onclick="checkAndSendRequest('${user.email}', '${b}', this)">
+                        <i class="fas fa-paper-plane" style="font-size: 0.65rem;"></i> שלח בקשה
                      </button>`;
                 }
             }
 
-            li.innerHTML = content;
-            list.appendChild(li);
+            booksContainer.innerHTML += `
+                <div class="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-sm">
+                    <span class="text-gray-800 dark:text-white font-semibold">${b}</span>
+                    ${statusHtml}
+                </div>
+            `;
         });
     }
 
     // הצגת ארכיון (ספרים שהושלמו)
     if (user.completedBooks && user.completedBooks.length > 0) {
-        const hr = document.createElement('hr');
-        hr.style.margin = "15px 0 5px 0";
-        hr.style.border = "0";
-        hr.style.borderTop = "1px solid #eee";
-        list.appendChild(hr);
-
-        const header = document.createElement('div');
-        header.innerHTML = '<strong style="color:#16a34a;"><i class="fas fa-check-circle"></i> ארכיון (הושלמו):</strong>';
-        header.style.fontSize = '0.9rem';
-        header.style.marginBottom = '5px';
-        list.appendChild(header);
-
+        archiveSection.style.display = 'block';
         user.completedBooks.forEach(b => {
-            const li = document.createElement('li');
-            li.style.fontSize = "0.9rem";
-            li.style.color = "#64748b";
-            li.innerHTML = `<i class="fas fa-book" style="font-size:0.8rem; margin-left:5px;"></i> ${b}`;
-            list.appendChild(li);
+            archiveContainer.innerHTML += `
+                <li class="flex items-center gap-3 p-3 bg-gray-50/50 dark:bg-slate-800/50 rounded-xl text-gray-500 dark:text-slate-400 text-sm border border-transparent hover:border-green-100 transition-colors">
+                    <div class="p-1.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                        <i class="fas fa-book h-4 w-4 text-gray-400"></i>
+                    </div>
+                    <span class="font-medium">${b}</span>
+                    <span class="mr-auto text-green-500">
+                        <i class="fas fa-check-circle"></i>
+                    </span>
+                </li>
+            `;
         });
+    } else {
+        archiveSection.style.display = 'none';
     }
+
     document.getElementById('userModal').style.display = 'flex';
     bringToFront(document.getElementById('userModal'));
-    // הוסף את זה בסוף פונקציית showUserDetails
-    document.getElementById('userModal').onclick = function (event) {
-        if (event.target == this) {
-            closeModal(); // סגירה בלחיצה מחוץ לחלון (על הרקע)
-        }
-    };
+}
+
+async function checkAndSendRequest(email, book, btnElement) {
+    if (!requireAuth()) return;
+    const amILearning = userGoals.some(g => g.bookName === book && g.status === 'active');
+    if (!amILearning) {
+        showToast(`עליך ללמוד את "${book}" כדי לשלוח בקשה.`, "error");
+        return;
+    }
+
+    if(btnElement) btnElement.disabled = true;
+
+    const success = await sendChavrutaRequest(email, book);
+
+    if (success && btnElement) {
+        btnElement.outerHTML = `<span class="text-xs text-orange-500">(בקשה נשלחה)</span>`;
+        // Add to local state to persist until next sync
+        pendingSentRequests.push({ receiver: email, book: book, created_at: new Date().toISOString() });
+    } else if (btnElement) {
+        btnElement.disabled = false;
+    }
 }
 
 async function toggleFollow(targetEmail) {
+    if (!requireAuth()) return;
     const btn = document.getElementById('followBtn');
-    const isFollowing = btn.innerText.includes('הסר');
+    if (!btn) return;
+    const isFollowing = btn.innerHTML.includes('הסר עוקב');
 
     try {
         if (isFollowing) {
             await supabaseClient.from('user_followers').delete().eq('follower_email', currentUser.email).eq('following_email', targetEmail);
             btn.innerHTML = '<i class="fas fa-user-plus"></i> עקוב';
-            btn.style.background = 'var(--accent)';
+            btn.className = 'w-full mt-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-sm bg-yellow-500/90 hover:bg-yellow-500 text-white';
             showToast("הסרת עוקב", "info");
         } else {
             await supabaseClient.from('user_followers').insert([{ follower_email: currentUser.email, following_email: targetEmail }]);
             btn.innerHTML = '<i class="fas fa-user-minus"></i> הסר עוקב';
-            btn.style.background = '#94a3b8';
+            btn.className = 'w-full mt-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-sm bg-gray-200 hover:bg-gray-300 text-gray-700';
             showToast("אתה עוקב כעת!", "success");
         }
+        updateFollowersCount(); // Update the count in the header dropdown
     } catch (e) {
         console.error(e);
         showToast("שגיאה בעדכון עוקב", "error");
     }
 }
 
-async function showMyFollowers() {
-    const { data: followers, error } = await supabaseClient
-        .from('user_followers')
-        .select('follower_email')
-        .eq('following_email', currentUser.email);
+async function showFollows() {
+    const modal = document.getElementById('followersModal');
+    modal.style.display = 'flex';
+    bringToFront(modal);
 
-    const listContent = document.getElementById('followersListContent');
-    listContent.innerHTML = '<div style="text-align:center; padding:20px;">טוען עוקבים...</div>';
+    // The tabs are now part of the HTML, so we just need to trigger the first render.
+    // The `renderFollowsList` will handle the active state of the button.
+    renderFollowsList('followers', document.querySelector('#followers-tabs button:first-child'));
+}
 
-    document.getElementById('followersModal').style.display = 'flex';
-    bringToFront(document.getElementById('followersModal'));
-
-    if (followers && followers.length > 0) {
-        let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
-        for (const f of followers) {
-            const u = globalUsersData.find(user => user.email === f.follower_email) || { name: f.follower_email.split('@')[0], email: f.follower_email, subscription: { level: 0 } };
-
-            // Aura logic
-            const subLevel = u.subscription ? u.subscription.level : 0;
-            const auraClass = subLevel > 0 ? `aura-lvl-${subLevel}` : '';
-            const auraStyle = subLevel > 0 ? 'border-radius: 50%;' : '';
-
-            html += `
-                <div style="display:flex; align-items:center; padding:10px; background:#fff; border-bottom:1px solid #eee; cursor:pointer;" onclick="closeModal(); showUserDetails('${u.email}')">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="${auraClass}" style="width:45px; height:45px; display:flex; align-items:center; justify-content:center; font-size:2rem; color:#cbd5e1; ${auraStyle}"><i class="fas fa-user-circle"></i></div>
-                        <div>
-                            <div style="font-weight:bold;">${u.name}</div>
-                            <div style="font-size:0.8rem; color:#64748b;">${u.email}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        html += '</div>';
-        listContent.innerHTML = html;
-    } else {
-        listContent.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">עדיין אין לך עוקבים.</div>';
+async function renderFollowsList(type, tabEl) {
+    if (tabEl) {
+        // New tab styling
+        document.querySelectorAll('#followers-tabs button').forEach(t => {
+            t.classList.remove('bg-amber-400', 'text-white', 'shadow-md', 'dark:bg-amber-400', 'dark:text-slate-900');
+            t.classList.add('text-slate-500', 'dark:text-slate-400');
+        });
+        tabEl.classList.add('bg-amber-400', 'text-white', 'shadow-md', 'dark:bg-amber-400', 'dark:text-slate-900');
+        tabEl.classList.remove('text-slate-500', 'dark:text-slate-400');
     }
+
+    const listArea = document.getElementById('follows-list-area');
+    listArea.innerHTML = '<div class="text-center p-5 text-slate-400">טוען...</div>';
+
+    const { data, error } = await supabaseClient.from('user_followers').select(type === 'followers' ? 'follower_email' : 'following_email').eq(type === 'followers' ? 'following_email' : 'follower_email', currentUser.email);
+
+    if (error || !data || data.length === 0) {
+        listArea.innerHTML = `<div class="text-center p-10 text-slate-500">אין ${type === 'followers' ? 'עוקבים' : 'נעקבים'} בקטגוריה זו.</div>`;
+        return;
+    }
+
+    const emails = data.map(item => type === 'followers' ? item.follower_email : item.following_email);
+    
+    const { data: users, error: usersError } = await supabaseClient
+        .from('users')
+        .select('display_name, email, subscription')
+        .in('email', emails);
+
+    if (usersError) {
+        listArea.innerHTML = `<div class="text-center p-10 text-red-500">שגיאה בטעינת משתמשים.</div>`;
+        return;
+    }
+
+    if (!users || users.length === 0) {
+        listArea.innerHTML = `<div class="text-center p-10 text-slate-500">לא נמצאו פרטי משתמשים.</div>`;
+        return;
+    }
+
+    let html = '';
+    users.forEach(u => {
+        const subLevel = u.subscription?.level || 0;
+        const isSub = subLevel > 0;
+        const tier = isSub ? SUBSCRIPTION_TIERS.find(t => t.level === subLevel) : null;
+        const glowColor = tier ? tier.color : '#a855f7'; // default purple
+
+        const avatarGlowStyle = isSub ? `border: 2px solid ${glowColor}; box-shadow: 0 0 15px ${glowColor}4D;` : '';
+        const cardGlowClass = isSub ? 'border-2' : 'border border-slate-200 dark:border-slate-700';
+        const cardGlowStyle = isSub ? `border-color: ${glowColor}33; background-color: ${glowColor}0D;` : '';
+
+        html += `
+        <div class="user-card ${cardGlowClass} rounded-2xl p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" style="${cardGlowStyle}" onclick="closeModal(); showUserDetails('${u.email}')">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400" style="${avatarGlowStyle}">
+                    <i class="fas fa-user text-xl"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-slate-800 dark:text-white text-base">${u.display_name || u.email.split('@')[0]}</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">${u.email}</span>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    listArea.innerHTML = html;
 }
 
 async function checkAndSendRequest(email, book) {
+    if (!requireAuth()) return;
     const amILearning = userGoals.some(g => g.bookName === book && g.status === 'active');
     if (!amILearning) {
         showToast(`עליך ללמוד את "${book}" כדי לשלוח בקשה.`, "error");
@@ -1878,6 +761,7 @@ async function loadSchedules() {
 }
 
 async function saveProfile() {
+    if (!requireAuth()) return;
     const name = document.getElementById('profileName').value;
     const phone = document.getElementById('profilePhone').value;
     const city = document.getElementById('profileCity').value;
@@ -1958,11 +842,10 @@ async function saveProfile() {
     }
 }
 
-function saveGoals() {
-    // שמירה מקומית
-    localStorage.setItem('torahApp_goals', JSON.stringify(userGoals));
-}
+
 function switchScreen(name, el) {
+    if (name === 'chats' && !requireAuth()) return;
+
     // איפוס תצוגת הוספה למצב ברירת מחדל (תפריט)
     if (name === 'add') {
         showAddSection('menu');
@@ -1972,45 +855,54 @@ function switchScreen(name, el) {
     const headerTitle = document.getElementById('headerTitle');
     const bottomNav = document.querySelector('.floating-nav-container');
     const headerEmail = document.getElementById('headerUserEmail');
-
+    const spacer = document.getElementById('bottom-spacer');
+    const container = document.querySelector('.container');
+    
+    // איפוס סגנונות קונטיינר למצב רגיל
+    container.style.maxWidth = '';
+    container.style.margin = '';
+    container.style.padding = '';
+    container.style.height = '';
+    container.style.overflow = '';
+    document.body.style.paddingBottom = '';
     if (name === 'admin') {
         isAdminMode = true;
-        document.querySelector('.container').style.maxWidth = '100%';
-        document.querySelector('.container').style.margin = '0';
-        document.querySelector('.container').style.padding = '0';
-        document.querySelector('.container').style.height = 'calc(100vh - 65px)'; // גובה מלא פחות האדר
-        document.querySelector('.container').style.overflow = 'hidden';
+        container.style.maxWidth = '100%';
+        container.style.margin = '0';
+        container.style.padding = '0';
+        container.style.height = 'calc(100vh - 65px)'; // גובה מלא פחות האדר
+        container.style.overflow = 'hidden';
 
-        bottomNav.style.display = 'none';
+        bottomNav.classList.add('nav-hidden');
+        if (spacer) spacer.style.display = 'none';
         headerTitle.innerHTML = 'בית המדרש - <span style="color:#f59e0b;">מצב ניהול</span>';
         headerEmail.innerHTML = '<button class="btn" style="padding:4px 10px; font-size:0.8rem; background:#334155;" onclick="switchScreen(\'dashboard\', document.querySelector(\'.nav-item\'))">יציאה מניהול</button>';
     } else {
+        isAdminMode = false;
+        headerTitle.innerText = 'בית המדרש';
         document.getElementById('bot-mode-indicator').style.display = 'none';
-        headerEmail.style.display = 'block';
         // אם אנחנו מחוברים כבוט, נציג כפתור חזרה
         if (realAdminUser) {
             document.getElementById('bot-mode-indicator').style.display = 'block';
-            headerEmail.style.display = 'none';
+            headerEmail.innerHTML = ''; // Hide text but keep element for layout
+        } else {
+            headerEmail.style.display = 'block';
+            headerEmail.innerText = currentUser ? (currentUser.displayName || currentUser.email) : 'לא מחובר';
         }
 
         if (name === 'chats') {
-            document.querySelector('.container').style.maxWidth = '100%';
-            document.querySelector('.container').style.padding = '0';
-            document.querySelector('.container').style.margin = '0';
-            document.querySelector('.container').style.height = 'calc(100vh - 60px)'; // התאמה לגובה מסך פחות האדר
+            bottomNav.classList.add('nav-hidden');
+            if (spacer) spacer.style.display = 'none';
+            headerEmail.innerHTML = `<button class="btn-back" onclick="switchScreen('dashboard', document.querySelector('.floating-nav-item'))"><i class="fas fa-arrow-left"></i> יציאה מהצ'אטים</button>`;
+            container.style.maxWidth = 'calc(100% - 2rem)'; // כמעט רוחב מלא
+            container.style.margin = '0 auto';
+            container.style.height = 'calc(100vh - 67px)';
+            container.style.overflow = 'hidden';
+            document.body.style.paddingBottom = '0';
+        } else {
+            bottomNav.classList.remove('nav-hidden');
+            if (spacer) spacer.style.display = 'block';
         }
-        isAdminMode = false;
-        if (name !== 'chats') {
-            const container = document.querySelector('.container');
-            container.style.maxWidth = '900px';
-            container.style.margin = '20px auto';
-            container.style.height = 'auto';
-            container.style.overflow = 'visible';
-            container.style.padding = '0 15px';
-        }
-        bottomNav.style.display = 'block';
-        headerTitle.innerText = 'בית המדרש';
-        headerEmail.innerText = currentUser ? (currentUser.displayName || currentUser.email) : 'לא מחובר';
     }
 
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2027,6 +919,7 @@ function switchScreen(name, el) {
     if (name === 'community') renderCommunity(); // Mazal Tov moved to chats
     if (name === 'chats') renderChatList('personal');
     if (name === 'archive') loadChatRating();
+    if (name === 'shop') renderShop();
     if (name === 'ads') loadAds();
 }
 
@@ -2056,7 +949,7 @@ function updateNotifUI() {
 
     if (notifications.length > 0) {
         badge.innerText = notifications.length;
-        badge.style.display = 'block';
+        badge.style.display = 'flex';
         list.innerHTML = notifications.map((n, index) => {
             if (n.html) {
                 // The buttons inside will handle their own logic. No top-level onclick.
@@ -2102,44 +995,60 @@ function toggleNotifications() {
 function renderGoalCard(goal, container, isActive) {
     const div = document.createElement('div');
     div.id = `goal-card-${goal.id}`;
-    div.className = 'goal-item';
+    div.className = 'glass rounded-super p-6 transition-all hover:shadow-2xl hover:translate-y-[-2px] border border-white/50 dark:border-slate-700/40 mb-4';
 
     // חישוב אחוזים
     const percent = Math.min(100, Math.round((goal.currentUnit / goal.totalUnits) * 100));
 
-    let html = ` 
-           <div class="goal-header">
-                <div>
-                    <span class="goal-title">${goal.bookName}</span>
-                    <div style="font-size:0.9rem; color:var(--text-main); font-weight:bold;">${unitToDafString(goal)}</div>
+    let html = `
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div class="flex-1">
+            <div class="flex items-center gap-4 mb-2">
+                <div class="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl">
+                    <i class="fas fa-book"></i>
                 </div>
-                <div style="text-align:left; font-size:0.9rem; color:#64748b;">
-                    ${goal.totalUnits - goal.currentUnit} עמודים לסיום
+                <div>
+                    <h3 class="text-lg font-bold">${goal.bookName}</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">${unitToDafString(goal)}</p>
                 </div>
             </div>
-            ${goal.dedication ? `<div class="dedication-text">${goal.dedication}</div>` : ''}
-            
-            <div class="progress-container">
-                <div class="progress-bar" style="width: ${percent}%"></div>
-            </div>`;
-
-    if (isActive) {
-        html += `
-                <div class="controls-row" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                    <div class="counter-widget">
-                        <button class="btn-circle btn-minus" onclick="updateProgress(${goal.id}, -1)">-</button>
-                        <button class="btn-circle btn-plus" onclick="updateProgress(${goal.id}, 1)">+</button>
-                    </div>
-                    
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn-icon" onclick="openChavrutaSearch('${goal.bookName}')" title="מצא חברותא"><i class="fas fa-user-plus"></i></button>
-                        <button class="btn-icon" onclick="openBookChat('${goal.bookName}')" title="צ'אט כללי"><i class="fas fa-comments"></i></button>
-                        <button class="btn-icon" onclick="openNotes('${goal.id}')" title="הערות אישיות"><i class="fas fa-sticky-note"></i></button>
-                        <button class="btn-icon danger" onclick="deleteGoal(${goal.id})" title="מחק לימוד"><i class="fas fa-trash"></i></button>
-                    </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-xs mb-2 px-1">
+                    <span class="text-slate-400">${goal.totalUnits - goal.currentUnit} עמודים לסיום</span>
+                    <span class="font-bold text-primary">${percent}%</span>
                 </div>
-            `;
-    } else {
+                <div class="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full progress-gradient rounded-full" style="width: ${percent}%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center justify-between md:justify-end gap-3">
+            <div class="flex items-center gap-2">
+                <button class="w-10 h-10 rounded-full glass hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center text-slate-500 dark:text-slate-400" onclick="deleteGoal('${goal.id}')" title="מחק">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+                <button class="w-10 h-10 rounded-full glass hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center text-slate-500 dark:text-slate-400" onclick="openNotes('${goal.id}')" title="הערות">
+                    <i class="fas fa-sticky-note"></i>
+                </button>
+                <button class="w-10 h-10 rounded-full glass hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center text-slate-500 dark:text-slate-400" onclick="openBookChat('${goal.bookName}')" title="צ'אט">
+                    <i class="fas fa-comment"></i>
+                </button>
+                <button class="w-10 h-10 rounded-full glass hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center text-slate-500 dark:text-slate-400" onclick="openChavrutaSearch('${goal.bookName}')" title="מצא חברותא">
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
+                <button class="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-slate-600 dark:text-slate-300" onclick="updateProgress(${goal.id}, -1)">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button class="w-10 h-10 rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all" onclick="updateProgress(${goal.id}, 1)">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    </div>`;
+
+    if (!isActive) {
         html += `<div style="text-align:center; color:var(--success); font-weight:bold;">הושלם! <i class="fas fa-check"></i></div>`;
     }
 
@@ -2148,9 +1057,6 @@ function renderGoalCard(goal, container, isActive) {
 }
 
 function toGematria(num) {
-    if (num === 15) return 'טו';
-    if (num === 16) return 'טז';
-
     const letters = [
         ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'],
         ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'],
@@ -2174,7 +1080,15 @@ function toGematria(num) {
     if (n > 0) {
         str += letters[0][n];
     }
-    return str.replace(/יה/g, 'טו').replace(/יו/g, 'טז');
+    let result = str.replace(/יה/g, 'טו').replace(/יו/g, 'טז');
+
+    if (result.length > 1) {
+        result = result.slice(0, -1) + '"' + result.slice(-1);
+    } else if (result.length === 1) {
+        result += "'";
+    }
+
+    return result;
 }
 
 function unitToDafString(goal) {
@@ -2222,42 +1136,22 @@ async function openNotes(goalId) {
 
     localStorage.setItem('current_notes_context', JSON.stringify(currentNotesData));
 
-    // שימוש ב-Textarea במקום iframe כדי לאפשר שמירה אוטומטית ועריכה נוחה
     const modalContent = document.querySelector('#notesModal .modal-content');
-    let container = document.getElementById('notesContainer');
+    
+    // ניקוי קונטיינר ישן אם קיים
+    const container = document.getElementById('notesContainer');
+    if (container) container.remove();
 
-    if (!container) {
-        // יצירת קונטיינר אם לא קיים (מחליף את ה-iframe)
-        const frame = document.getElementById('notesFrame');
-        if (frame) frame.style.display = 'none'; // הסתרת ה-iframe הישן
-
-        container = document.createElement('div');
-        container.id = 'notesContainer';
-        container.style.marginTop = '10px';
-        // הוספה ל-DOM אחרי הכותרת או במקום ה-iframe
-        if (frame) frame.parentNode.insertBefore(container, frame);
-        else modalContent.appendChild(container);
+    // שימוש ב-iframe לטעינת notes.html
+    let frame = document.getElementById('notesFrame');
+    if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = 'notesFrame';
+        frame.style.cssText = "width:100%; height:100%; border:none; border-radius: 16px;";
+        modalContent.appendChild(frame);
     }
-
-    // יצירת אזור העריכה
-    const notesText = currentNotesData.notes.map(n => n.content).join('\n\n');
-    container.innerHTML = `
-        <textarea id="notesEditor" class="note-content" style="width:100%; height:300px; padding:10px; border:1px solid #ccc; border-radius:8px; font-family:inherit; resize:none;" placeholder="כתוב כאן את חידושי התורה שלך...">${notesText}</textarea>
-        <div style="text-align:left; font-size:0.8rem; color:#64748b; margin-top:5px;"><i class="fas fa-save"></i> נשמר אוטומטית</div>
-    `;
-
-    // הגדרת שמירה אוטומטית
-    const textarea = document.getElementById('notesEditor');
-    let saveTimeout;
-    textarea.oninput = () => {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => {
-            const content = textarea.value;
-            // שמירה כמערך של הערות (כרגע הערה אחת גדולה לנוחות)
-            const newNotes = content ? [{ content: content, date: new Date().toISOString() }] : [];
-            updateGoalNotes(goalId, newNotes);
-        }, 1000); // שמירה שניה אחרי סיום הקלדה
-    };
+    frame.style.display = 'block';
+    frame.src = 'notes.html';
 
     document.getElementById('notesModal').style.display = 'flex';
     bringToFront(document.getElementById('notesModal'));
@@ -2276,6 +1170,7 @@ function toggleFocusMode() {
 }
 
 async function completeGoal(goalId) {
+    if (!requireAuth()) return;
     const goalIndex = userGoals.findIndex(g => g.id === goalId);
     if (goalIndex === -1) return;
 
@@ -2361,6 +1256,7 @@ async function completeGoal(goalId) {
 }
 
 async function updateProgress(goalId, change) {
+    if (!requireAuth()) return;
     // 1. מציאת הלימוד ברשימה המקומית
     const goal = userGoals.find(g => g.id == goalId);
     if (!goal) return;
@@ -2380,19 +1276,19 @@ async function updateProgress(goalId, change) {
         const percent = Math.min(100, Math.round((goal.currentUnit / goal.totalUnits) * 100));
 
         // עדכון טקסט הדף/יחידה
-        const dafStringEl = goalCard.querySelector('p[style*="font-size:0.875rem"]');
+        const dafStringEl = goalCard.querySelector('p.text-sm.text-slate-500');
         if (dafStringEl) dafStringEl.innerText = unitToDafString(goal);
 
         // עדכון טקסט עמודים לסיום
-        const remainingEl = goalCard.querySelector('span[style*="color:#94a3b8"]');
+        const remainingEl = goalCard.querySelector('.flex.justify-between.text-xs span.text-slate-400');
         if (remainingEl) remainingEl.innerText = `${goal.totalUnits - goal.currentUnit} עמודים לסיום`;
 
         // עדכון טקסט אחוזים
-        const percentTextEl = goalCard.querySelector('span[style*="font-weight:bold"]');
+        const percentTextEl = goalCard.querySelector('.font-bold.text-primary');
         if (percentTextEl) percentTextEl.innerText = `${percent}%`;
 
         // עדכון פס התקדמות
-        const progressBarEl = goalCard.querySelector('.progress-fill-gradient');
+        const progressBarEl = goalCard.querySelector('.progress-gradient');
         if (progressBarEl) progressBarEl.style.width = `${percent}%`;
 
         // עדכון סטטיסטיקה כללית
@@ -2468,192 +1364,6 @@ async function updateProgress(goalId, change) {
         console.log("שגיאת סנכרון (אבל נשמר מקומית):", e);
     }
 }
-
-async function deleteGoal(goalId) {
-    if (!(await customConfirm("האם אתה בטוח שברצונך למחוק את הלימוד הזה?"))) return;
-
-    // 1. מציאת הלימוד כדי לדעת מה למחוק מהענן אחר כך
-    const goalToDelete = userGoals.find(g => g.id == goalId);
-
-    // 2. עדכון הרשימה המקומית (סינון החוצה של האידי שנמחק)
-    userGoals = userGoals.filter(g => g.id != goalId);
-
-    // 3. שמירה ורענון מסך
-    saveGoals();
-    renderGoals();
-
-    // 4. מחיקה מהענן (Supabase)
-    try {
-        if (typeof supabaseClient !== 'undefined' && currentUser && goalToDelete) {
-            await supabaseClient
-                .from('user_goals')
-                .delete()
-                .eq('user_email', currentUser.email)
-                .eq('book_name', goalToDelete.bookName);
-
-            // מחיקת חברותות קשורות
-            await supabaseClient.from('chavruta_requests')
-                .delete()
-                .or(`sender_email.eq.${currentUser.email},receiver_email.eq.${currentUser.email}`)
-                .eq('book_name', goalToDelete.bookName)
-                .eq('status', 'approved');
-        }
-    } catch (e) {
-        console.error("נמחק מקומית, שגיאה במחיקה מהענן:", e);
-    }
-}
-
-function closeModal() {
-    // סוגר את כל סוגי החלונות הקופצים שיש במערכת
-    const userModal = document.getElementById('userModal');
-    const chavrutaModal = document.getElementById('chavrutaModal');
-    const scheduleModal = document.getElementById('scheduleModal');
-    const adminChatModal = document.getElementById('adminChatModal');
-    const bookReaderModal = document.getElementById('bookReaderModal');
-    const suggestionModal = document.getElementById('suggestionModal');
-
-    if (userModal) userModal.style.display = 'none';
-    if (document.getElementById('adminNotesModal')) document.getElementById('adminNotesModal').style.display = 'none';
-    if (chavrutaModal) chavrutaModal.style.display = 'none';
-    if (scheduleModal) scheduleModal.style.display = 'none';
-    if (adminChatModal) adminChatModal.style.display = 'none';
-    if (bookReaderModal) {
-        bookReaderModal.style.display = 'none';
-        const frame = document.getElementById('bookReaderFrame');
-        if (frame) frame.src = 'about:blank'; // Stop loading
-        if (document.body.classList.contains('focus-mode')) toggleFocusMode(); // יציאה ממצב מרוכז בסגירה
-    }
-    if (document.getElementById('donationModal')) document.getElementById('donationModal').style.display = 'none';
-    if (suggestionModal) suggestionModal.style.display = 'none';
-    if (document.getElementById('achievementsModal')) document.getElementById('achievementsModal').style.display = 'none';
-    if (document.getElementById('followersModal')) document.getElementById('followersModal').style.display = 'none';
-
-    if (chatInterval) clearInterval(chatInterval);
-    if (document.getElementById('notesModal')) document.getElementById('notesModal').style.display = 'none';
-}
-
-function renderGeneralSearchResults(results, query) {
-    const container = document.getElementById('generalSearchResults');
-    container.innerHTML = '';
-    let foundResults = false;
-
-    const highlight = (text, term) => {
-        if (!text || !term) return text || '';
-        const regex = new RegExp(`(${term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
-        return text.replace(regex, '<strong>$1</strong>');
-    };
-
-    // Users
-    if (results.users && results.users.length > 0) {
-        foundResults = true;
-        let groupHtml = '<div class="result-group-title">משתמשים</div>';
-        results.users.forEach(u => {
-            groupHtml += `
-                <div class="result-item" onclick="closeModal(); showUserDetails('${u.email}')">
-                    <div class="result-item-title">${highlight(u.name, query)}</div>
-                    <div class="result-item-context">${highlight(u.email, query)} - ${u.city || ''}</div>
-                </div>
-            `;
-        });
-        container.innerHTML += groupHtml;
-    }
-
-    // My Goals
-    if (results.my_goals && results.my_goals.length > 0) {
-        foundResults = true;
-        let groupHtml = '<div class="result-group-title">המסכתות שלי</div>';
-        results.my_goals.forEach(g => {
-            groupHtml += `
-                <div class="result-item" onclick="closeSearchDropdown(); switchScreen('dashboard'); setTimeout(() => document.getElementById('goal-card-${g.id}').scrollIntoView({behavior: 'smooth', block: 'center'}), 100);">
-                    <div class="result-item-title">${highlight(g.bookName, query)}</div>
-                    <div class="result-item-context">${g.status === 'active' ? 'פעיל' : 'בארכיון'} - ${highlight(g.dedication, query)}</div>
-                </div>
-            `;
-        });
-        container.innerHTML += groupHtml;
-    }
-
-    // My Chavrutas
-    if (results.my_chavrutas && results.my_chavrutas.length > 0) {
-        foundResults = true;
-        let groupHtml = '<div class="result-group-title">החברותות שלי</div>';
-        results.my_chavrutas.forEach(u => {
-            groupHtml += `
-                <div class="result-item" onclick="closeSearchDropdown(); switchScreen('chavrutas'); showUserDetails('${u.email}');">
-                    <div class="result-item-title">${highlight(u.name, query)}</div>
-                    <div class="result-item-context">${highlight(u.email, query)}</div>
-                </div>
-            `;
-        });
-        container.innerHTML += groupHtml;
-    }
-
-    // Chat Messages
-    if (results.chats && results.chats.length > 0) {
-        foundResults = true;
-        let groupHtml = '<div class="result-group-title">הודעות בצ\'אט</div>';
-        results.chats.forEach(msg => {
-            const isMe = msg.sender_email === currentUser.email;
-            const partnerEmail = isMe ? msg.receiver_email : msg.sender_email;
-            const partner = globalUsersData.find(u => u.email === partnerEmail);
-            const partnerName = partner ? partner.name : partnerEmail;
-            const safePartnerName = (partnerName || '').replace(/'/g, "\\'");
-
-            // תיקון: הסרת Book: מהשם אם קיים
-            const displayName = partnerName.startsWith('book:') ? partnerName.replace('book:', '') : partnerName;
-
-            groupHtml += `
-                <div class="result-item" onclick="closeSearchDropdown(); openChat('${partnerEmail}', '${displayName.replace(/'/g, "\\'")}');">
-                    <div class="result-item-title">שיחה עם ${displayName}</div>
-                    <div class="result-item-context">${isMe ? 'אני' : partnerName}: ${highlight(msg.message, query)}</div>
-                </div>
-            `;
-        });
-        container.innerHTML += groupHtml;
-    }
-
-    // Library Books
-    if (results.books && results.books.length > 0) {
-        foundResults = true;
-        let groupHtml = '<div class="result-group-title">ספרים בספרייה</div>';
-        results.books.forEach(b => {
-            groupHtml += `
-                <div class="result-item" onclick="closeSearchDropdown(); switchScreen('add'); showAddSection('new'); setTimeout(() => { document.getElementById('categorySelect').value = '${b.category}'; populateBooks(); document.getElementById('bookSelect').value = JSON.stringify({name:'${b.name}', units:${b.units}}); }, 500);">
-                    <div class="result-item-title">${highlight(b.name, query)}</div>
-                    <div class="result-item-context">קטגוריה: ${b.category}</div>
-                </div>
-            `;
-        });
-        container.innerHTML += groupHtml;
-    }
-
-    if (!foundResults) {
-        container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding-top: 50px;"><i class="fas fa-box-open" style="font-size: 3rem; opacity: 0.5;"></i><p>לא נמצאו תוצאות עבור "${query}"</p></div>`;
-    }
-    if (document.getElementById('notesModal')) document.getElementById('notesModal').style.display = 'none';
-}
-
-function bringToFront(element) {
-    globalZIndex++;
-    element.style.zIndex = globalZIndex;
-}
-
-
-
-function showAddSection(sectionId) {
-    document.getElementById('add-menu-view').style.display = 'none';
-    document.getElementById('add-section-cycles').style.display = 'none';
-    document.getElementById('add-section-quick').style.display = 'none';
-    document.getElementById('add-section-new').style.display = 'none';
-
-    if (sectionId === 'menu' || !sectionId) {
-        document.getElementById('add-menu-view').style.display = 'grid';
-    } else {
-        document.getElementById('add-section-' + sectionId).style.display = 'block';
-        if (sectionId === 'new') populateAllBooks(); // טעינת רשימת ספרים
-    }
-}
-
 
 /* === לוגיקת תרומות ומנויים === */
 let currentDonationType = 'sub'; // 'sub' or 'one'
@@ -2776,6 +1486,7 @@ function getTierByAmount(amount) {
 }
 
 async function processDonation() {
+    if (!requireAuth()) return;
     const customAmount = parseInt(document.getElementById('customDonationAmount').value) || 0;
     const finalAmount = customAmount > 0 ? customAmount : selectedTierPrice;
 
@@ -2868,7 +1579,153 @@ function openSuggestionModal() {
     bringToFront(modal);
 }
 
+// === לוגיקת דף תוצאות חברותא ===
+let currentChavrutaSearchResults = [];
+let currentSearchBook = '';
+let activeAgeFilter = null;
+
+function renderChavrutaResultsPage() {
+    const container = document.getElementById('chavrutaResultsPageContainer');
+    const countLabel = document.getElementById('resultsCountLabel');
+    const userCityDisplay = document.getElementById('userCityDisplay');
+    
+    if (currentUser && currentUser.city) {
+        userCityDisplay.innerText = currentUser.city;
+    } else {
+        userCityDisplay.innerText = 'לא מוגדר';
+    }
+
+    let filtered = [...currentChavrutaSearchResults];
+
+    // סינון: הצג רק משתמשים שלומדים את אותו הספר
+    if (currentSearchBook) {
+        filtered = filtered.filter(u => u.books && u.books.includes(currentSearchBook));
+    }
+
+    // סינון לפי גיל
+    if (activeAgeFilter) {
+        filtered = filtered.filter(u => u.age && u.age >= activeAgeFilter.min && u.age <= activeAgeFilter.max);
+    }
+
+    // סינון לפי עיר
+    const sameCity = document.getElementById('filterSameCity').checked;
+    if (sameCity && currentUser && currentUser.city) {
+        filtered = filtered.filter(u => u.city && u.city.trim() === currentUser.city.trim());
+    }
+
+    // סינון לפי היסטוריית לימוד
+    const historyFilter = document.getElementById('filterHistory').checked;
+    if (historyFilter) {
+        filtered = filtered.filter(u => chavrutaConnections.some(c => c.email === u.email));
+    }
+
+    countLabel.innerText = `(${filtered.length} חברותות נמצאו)`;
+    container.innerHTML = '';
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:50px;">יש כאן חפצא (חיפוש), אבל אין גברא (חברותא)... נסה להסיר כמה מגבלות, אולי החברותא שלך מסתתר מאחורי סינון אחר.</div>`;
+        return;
+    }
+
+    filtered.forEach(user => {
+        const displayName = user.isAnonymous ? "לומד אנונימי" : (user.display_name || user.name || "לומד");
+        const badge = getUserBadgeHtml(user);
+        const matchPercent = Math.min(100, Math.round((user.matchScore / 300) * 100)); // נרמול ל-100% בערך
+        const dashOffset = 213.6 - (213.6 * matchPercent) / 100;
+
+        const card = document.createElement('div');
+        card.className = "bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow relative overflow-hidden group";
+        card.innerHTML = `
+            <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500 rounded-r-full"></div>
+            <div class="flex-shrink-0 flex flex-col items-center cursor-pointer" onclick="showUserDetails('${user.email}')">
+                <div class="relative w-24 h-24 mb-3">
+                    <div class="w-full h-full rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-4xl text-slate-400">
+                        ${user.isAnonymous ? '<i class="fas fa-user-secret"></i>' : '<i class="fas fa-user"></i>'}
+                    </div>
+                    ${user.lastSeen && (new Date() - new Date(user.lastSeen) < 5 * 60 * 1000) ?
+                    '<div class="absolute -bottom-2 -left-2 bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-slate-800 shadow-sm"></div>' : ''}
+                </div>
+                <div class="text-center">
+                    <h3 class="font-bold text-lg leading-tight">${displayName} ${badge}</h3>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm">${user.city || 'לא צוין'}</p>
+                </div>
+            </div>
+            <div class="flex-1 space-y-4">
+                <div class="flex flex-wrap gap-2">
+                    ${user.age ? `<span class="bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-xs font-medium">גיל: ${user.age}</span>` : ''}
+                    <span class="bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-xs font-medium">לומד: ${currentSearchBook}</span>
+                    <span class="bg-slate-100 dark:bg-slate-700 px-3 py-1 rounded-full text-xs font-medium">דרגה: ${getRankName(user.learned)}</span>
+                </div>
+                <p class="text-sm text-slate-600 dark:text-slate-300 line-clamp-2">
+                    ${user.isAnonymous ? 'משתמש זה בחר להישאר אנונימי.' : 'מחפש חברותא ללימוד משותף.'}
+                </p>
+                <div class="flex items-center gap-4 pt-2">
+                    <button class="bg-amber-500 text-white px-6 py-2 rounded-xl font-bold hover:bg-amber-600 transition-colors shadow-sm shadow-amber-500/20" onclick="sendChavrutaRequest('${user.email}', '${currentSearchBook}')">שלח בקשת חברותא</button>
+                </div>
+            </div>
+            <div class="flex-shrink-0 flex flex-col items-center justify-center px-4 border-r border-slate-100 dark:border-slate-700">
+                <div class="relative w-20 h-20 flex items-center justify-center">
+                    <svg class="w-full h-full transform -rotate-90">
+                        <circle class="text-slate-100 dark:text-slate-700" cx="40" cy="40" fill="transparent" r="34" stroke="currentColor" stroke-width="6"></circle>
+                        <circle class="text-amber-500 rounded-full" cx="40" cy="40" fill="transparent" r="34" stroke="currentColor" stroke-dasharray="213.6" stroke-dashoffset="${dashOffset}" stroke-width="6"></circle>
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span class="text-xl font-black text-amber-500">${matchPercent}%</span>
+                        <span class="text-[10px] text-slate-400 font-medium">התאמה</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function filterChavrutaByAge(min, max, btn) {
+    activeAgeFilter = { min, max };
+    document.querySelectorAll('.filter-age-btn').forEach(b => b.classList.replace('bg-amber-500', 'bg-slate-100'));
+    document.querySelectorAll('.filter-age-btn').forEach(b => b.classList.replace('text-white', 'text-slate-600'));
+    
+    btn.classList.replace('bg-slate-100', 'bg-amber-500');
+    btn.classList.replace('text-slate-600', 'text-white');
+    renderChavrutaResultsPage();
+}
+
+function toggleCustomCheckbox(id) {
+    const input = document.getElementById(id);
+    input.checked = !input.checked;
+    updateCustomCheckboxVisual(id);
+    renderChavrutaResultsPage();
+}
+
+function updateCustomCheckboxVisual(id) {
+    const input = document.getElementById(id);
+    const visual = document.getElementById('visual-' + id);
+    const icon = visual.querySelector('span');
+    
+    if (input.checked) {
+        visual.classList.remove('border-slate-300', 'dark:border-slate-600');
+        visual.classList.add('bg-amber-500', 'border-amber-500');
+        icon.classList.remove('hidden');
+    } else {
+        visual.classList.add('border-slate-300', 'dark:border-slate-600');
+        visual.classList.remove('bg-amber-500', 'border-amber-500');
+        icon.classList.add('hidden');
+    }
+}
+
+function resetChavrutaFilters() {
+    activeAgeFilter = null;
+    document.getElementById('filterSameCity').checked = false;
+    updateCustomCheckboxVisual('filterSameCity');
+    document.getElementById('filterHistory').checked = false;
+    updateCustomCheckboxVisual('filterHistory');
+    document.querySelectorAll('.filter-age-btn').forEach(b => b.classList.replace('bg-amber-500', 'bg-slate-100'));
+    document.querySelectorAll('.filter-age-btn').forEach(b => b.classList.replace('text-white', 'text-slate-600'));
+    renderChavrutaResultsPage();
+}
+
 async function sendSuggestion() {
+    if (!requireAuth()) return;
     const content = document.getElementById('suggestionInput').value;
     if (!content) return customAlert("נא לכתוב תוכן להצעה");
 
@@ -2891,13 +1748,42 @@ function showThankYouAnimation() {
 
     // יצירת שכבת תודה
     const overlay = document.createElement('div');
-    overlay.className = 'thank-you-overlay';
+    overlay.className = 'thank-you-overlay fixed inset-0 flex items-center justify-center z-[9999] p-4';
     overlay.innerHTML = `
-        <div class="thank-you-box">
-            <h1 style="font-size:3rem; margin:0;">🎉</h1>
-            <h2 style="color:var(--primary); margin: 10px auto; text-align:center;">שכוייח!</h2>
-            <p style="font-size:1.2rem;">הקבלה נשלחה אליך למייל<br>והזכויות נשלחו הישר לכיסא הכבוד!</p>
-            <button class="btn" onclick="closeThankYou(this)">תזכו למצוות</button>
+        <div class="animate-popup bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden relative border border-white" style="box-shadow: 0 20px 50px rgba(0,0,0,0.1);">
+            <!-- Top Decorative Bar (Dash Style) -->
+            <div class="p-8 md:p-12 flex flex-col items-center text-center">
+                <!-- Success Icon/Illustration -->
+                <div class="mb-6 bg-yellow-50 rounded-full p-4">
+                    <svg class="h-16 w-16 text-[#fbbd08]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                </div>
+                <!-- Main Heading -->
+                <h1 class="text-5xl font-extrabold text-gray-800 mb-4 tracking-tight">
+                    שכוייח!
+                </h1>
+                <!-- Content Text -->
+                <div class="space-y-2 mb-10">
+                    <p class="text-xl text-gray-600 font-medium">
+                        הקבלה נשלחה אליך למייל
+                    </p>
+                    <p class="text-lg text-gray-500">
+                        והזכויות נשלחו הישר לכיסא הכבוד!
+                    </p>
+                </div>
+                <!-- Action Button -->
+                <button class="w-full py-4 bg-[#1e293b] text-white rounded-2xl text-xl font-bold hover:bg-slate-800 transition-colors shadow-lg active:transform active:scale-95" onclick="closeThankYou(this)">
+                    תזכו למצוות
+                </button>
+            </div>
+            <!-- Sparkle Ornaments (Dashboard Style) -->
+            <div class="absolute top-6 right-8 text-[#fbbd08] opacity-50">
+                <svg fill="currentColor" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M12,2L10.5,8.5L4,10L10.5,11.5L12,18L13.5,11.5L20,10L13.5,8.5L12,2Z"></path></svg>
+            </div>
+            <div class="absolute bottom-10 left-8 text-[#fbbd08] opacity-30 transform rotate-45">
+                <svg fill="currentColor" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M12,2L10.5,8.5L4,10L10.5,11.5L12,18L13.5,11.5L20,10L13.5,8.5L12,2Z"></path></svg>
+            </div>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -2923,324 +1809,6 @@ function getDailyProgress(goalId) {
     const today = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
     if (data.date !== today) return 0;
     return data.count || 0;
-}
-
-function incDailyProgress(goalId, amount) {
-    const current = getDailyProgress(goalId);
-    const today = new Date().toLocaleDateString('en-GB');
-    localStorage.setItem('daily_track_' + goalId, JSON.stringify({ date: today, count: current + amount }));
-}
-
-// === פונקציה ראשית: ציור רשימת הלימוד בעיצוב החדש ===
-function renderGoals() {
-    const list = document.getElementById('goalsList');
-    const tasksList = document.getElementById('dailyTasksList');
-    const archiveList = document.getElementById('archiveList');
-
-    if (!list) return;
-
-    list.innerHTML = '';
-    if (tasksList) tasksList.innerHTML = '';
-    if (archiveList) archiveList.innerHTML = '';
-
-    let hasTasks = false;
-    let totalLearned = 0;
-
-    // בדיקת ריקנות
-    const activeGoals = userGoals.filter(g => g.status === 'active');
-    if (activeGoals.length === 0) {
-        // Empty state handled by the add button at the bottom
-    }
-
-    userGoals.forEach(goal => {
-        // חישוב אחוז התקדמות
-        const percent = Math.min(100, Math.round((goal.currentUnit / goal.totalUnits) * 100));
-        totalLearned += goal.currentUnit;
-
-        // בדיקה אם יש חברותא לספר זה
-        const connection = chavrutaConnections.find(c => c.book === goal.bookName && c.email);
-        const partner = connection ? globalUsersData.find(u => u.email === connection.email) : null;
-        const partnerName = partner ? partner.name : (connection ? connection.email : '');
-
-        if (goal.status === 'active') {
-            // יצירת כרטיס לימוד פעיל
-            const div = document.createElement('div');
-            div.id = `goal-card-${goal.id}`; // הוספת ID לזיהוי ייחודי
-            div.className = 'study-card';
-
-            if (window.newGoalId === goal.id.toString()) {
-                // div.classList.add('new-goal-highlight'); // Optional: adapt to new style
-                if (window.isNewGoalAnimation) {
-                    // div.classList.add('new-goal-animation');
-                    window.isNewGoalAnimation = false; // איפוס
-                }
-            }
-
-            // אנימציה אם הושלם הרגע
-            if (window.justCompletedDailyGoal === goal.id) {
-                // div.classList.add('daily-goal-reached');
-            }
-
-            const iconBg = 'rgba(234, 179, 8, 0.1)';
-            const iconColor = '#EAB308';
-
-            div.innerHTML = `
-                <div class="study-card-content">
-                    <div style="flex:1;">
-                        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.5rem;">
-                            <div class="book-icon-wrapper" style="background:${iconBg}; color:${iconColor};">
-                                <i class="fas fa-book" style="font-size:1.25rem;"></i>
-                            </div>
-                            <div>
-                                <h3 style="font-size:1.125rem; font-weight:bold; margin:0; display: flex; align-items: center; gap: 8px;">
-                                    ${goal.bookName}
-                                    ${connection ? `<i class="fas fa-user-friends" style="color: var(--success);" title="בחברותא עם ${partnerName}"></i>` : ''}
-                                </h3>
-                                <p style="font-size:0.875rem; color:#64748b; margin:0;">${unitToDafString(goal)}</p>
-                            </div>
-                        </div>
-                        <div style="margin-top:1rem;">
-                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:0.5rem; padding:0 0.25rem;">
-                                <span style="color:#94a3b8;">${goal.totalUnits - goal.currentUnit} עמודים לסיום</span>
-                                <span style="font-weight:bold; color:#EAB308;">${percent}%</span>
-                            </div>
-                            <div class="progress-track" style="height:0.375rem;">
-                                <div class="progress-fill-gradient" style="width: ${percent}%; border-radius:9999px;"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-top:1.5rem; width:100%;">
-                        <div class="action-buttons">
-                            <button class="action-btn" onclick="deleteGoal(${goal.id})" title="מחק"><i class="fas fa-trash-alt"></i></button>
-                            <button class="action-btn" onclick="openNotes('${goal.id}')" title="הערות"><i class="fas fa-sticky-note"></i></button>
-                            <button class="action-btn" onclick="openBookChat('${goal.bookName}')" title="צ'אט"><i class="fas fa-comment"></i></button>
-                            <button class="action-btn" ${connection ? 'disabled' : ''} onclick="openChavrutaSearch('${goal.bookName}')" title="${connection ? 'כבר לומד בחברותא' : 'מצא חברותא'}">
-                                <i class="fas fa-user-plus" ${connection ? 'style="color: #94a3b8;"' : ''}></i>
-                            </button>
-                        </div>
-                        
-                        <div class="counter-wrapper">
-                            <button class="counter-btn minus" onclick="updateProgress(${goal.id}, -1)"><i class="fas fa-minus"></i></button>
-                            <button class="counter-btn plus" onclick="updateProgress(${goal.id}, 1)"><i class="fas fa-plus"></i></button>
-                        </div>
-                    </div>
-                </div>`;
-            list.appendChild(div);
-
-            // חישוב יעד יומי (אם הוגדר תאריך יעד)
-            if (goal.targetDate && tasksList) {
-                const diffTime = new Date(goal.targetDate) - new Date();
-                const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                const unitsLeft = goal.totalUnits - goal.currentUnit;
-                if (unitsLeft > 0 && diffDays > 0) {
-                    hasTasks = true;
-                    const dailyTarget = (unitsLeft / diffDays).toFixed(1);
-
-                    // חישוב התקדמות יומית
-                    const doneToday = getDailyProgress(goal.id);
-                    const dailyPercent = Math.min(100, (doneToday / Math.ceil(dailyTarget)) * 100);
-                    const isDailyDone = doneToday >= Math.ceil(dailyTarget);
-
-                    const taskDiv = document.createElement('div');
-                    taskDiv.id = `daily-task-${goal.id}`; // זיהוי ייחודי לעדכון
-                    taskDiv.className = 'task-row';
-
-                    if (window.justCompletedDailyGoal === goal.id) {
-                        taskDiv.classList.add('daily-goal-reached');
-                    }
-
-                    let statusHtml = `<span class="task-highlight">יעד יומי: ${dailyTarget}</span>`;
-                    if (isDailyDone) {
-                        statusHtml = `<span style="color:#16a34a; font-weight:bold; font-size:0.9rem;"><i class="fas fa-check"></i> הושלם</span>`;
-                    }
-
-                    taskDiv.innerHTML = `<div><strong>${goal.bookName}</strong></div><div style="text-align:left;">${statusHtml}
-                    <div class="daily-progress-bg"><div class="daily-progress-fill" style="width:${dailyPercent}%; background:${isDailyDone ? '#16a34a' : 'var(--accent)'}"></div></div></div>`;
-                    tasksList.appendChild(taskDiv);
-                }
-            }
-        } else {
-            // הצגת הלימוד בארכיון
-            if (archiveList) {
-                const archiveDiv = document.createElement('div');
-                archiveDiv.className = 'goal-item';
-                archiveDiv.style.borderTopColor = 'var(--success)';
-                archiveDiv.innerHTML = `
-                <div class="goal-header">
-                    <span class="goal-title">${goal.bookName}</span>
-                    <span style="color:var(--success); font-weight:bold;">הושלם! <i class="fas fa-check"></i></span>
-                </div>
-                <div class="progress-container"><div class="progress-bar" style="width: 100%; background: var(--success);"></div></div>`;
-                archiveList.appendChild(archiveDiv);
-            }
-        }
-    });
-
-    // עדכון תצוגת הדרגות והסטטיסטיקה
-    updateRankProgressBar(totalLearned);
-    document.getElementById('dailyTasksContainer').style.display = hasTasks ? 'block' : 'none';
-
-    const activeBooksCount = userGoals.filter(g => g.status === 'active').length;
-    const completedBooksCount = userGoals.filter(g => g.status === 'completed').length;
-
-    document.getElementById('stat-books').innerText = activeBooksCount;
-    document.getElementById('stat-pages').innerText = totalLearned;
-    document.getElementById('stat-completed').innerText = completedBooksCount;
-
-    // שמירת סטטיסטיקה למטמון לטעינה מהירה בפעם הבאה
-    const stats = { books: activeBooksCount, pages: totalLearned, completed: completedBooksCount };
-    localStorage.setItem('torahApp_stats', JSON.stringify(stats));
-
-    // Rating updated elsewhere
-
-    // איפוס דגלים
-    window.justCompletedDailyGoal = null;
-    window.newGoalId = null;
-}
-// === פונקציות חדשות: שמירת פרופיל וחיפוש חברותא ===
-
-// 2. משיכת כל המשתמשים והלימודים שלהם (כדי לראות אותם בלוח)
-
-// 3. מציאת חברותא אמיתית (מתוך הנתונים שמשכנו)
-async function openChavrutaSearch(bookName) {
-    // בדיקה אם המשתמש מילא פרטים
-    if (!currentUser.phone || !currentUser.city) {
-        await customAlert("כדי למצוא חברותא, עליך למלא עיר ומספר טלפון בפרופיל.");
-        switchScreen('profile', document.getElementById('nav-profile'));
-        return;
-    }
-
-    // קריאה לפונקציה החדשה שמציגה את ממשק החיפוש המעודכן
-    await findChavruta(bookName);
-}
-
-function searchSpecificUser() {
-    const query = document.getElementById('userSearchInput').value.toLowerCase().trim();
-    const resultsDiv = document.getElementById('userSearchResults');
-    resultsDiv.innerHTML = '';
-
-    if (!query) return;
-
-    const matches = globalUsersData.filter(u =>
-        (u.name.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)) &&
-        u.email.toLowerCase() !== currentUser.email.toLowerCase()
-    );
-
-    if (matches.length === 0) {
-        resultsDiv.innerHTML = '<p style="color:#666; text-align:center;">לא נמצאו משתמשים.</p>';
-        return;
-    }
-
-    matches.forEach(u => {
-        const div = document.createElement('div');
-        const badge = getUserBadgeHtml(u);
-        div.className = 'chavruta-result';
-        div.innerHTML = `
-            <div>
-                <strong>${badge}${u.name}</strong>
-                <div style="font-size:0.8rem;">${u.city || ''}</div>
-            </div>
-            <button class="btn" style="width:auto; font-size:0.8rem; padding:5px 10px;" onclick="showUserDetails('${u.email}')">הצג פרופיל</button>
-        `;
-        resultsDiv.appendChild(div);
-    });
-}
-
-function renderChavrutas() {
-    const list = document.getElementById('chavrutasList');
-    if (!list) return;
-    list.innerHTML = '';
-
-    if (approvedPartners.size === 0 && pendingSentRequests.length === 0) {
-        list.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">עדיין אין לך חברותות.<br>חפש ספרים והצע חברותא ללומדים אחרים!</div>';
-        return;
-    }
-
-    approvedPartners.forEach(email => {
-        let user = globalUsersData.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-
-        // גיבוי: אם המשתמש לא נמצא בנתונים הגלובליים (בגלל בעיית טעינה), ניצור אובייקט זמני
-        if (!user) {
-            user = {
-                name: email.split('@')[0], email: email, city: 'לא זמין', phone: '', lastSeen: null
-                , age: null
-            };
-        }
-
-        const sharedBooks = chavrutaConnections.filter(c => c.email === email).map(c => c.book).join(', ');
-
-        // בדיקת הודעות שלא נקראו
-        const unreadCount = unreadMessages[email] || 0;
-        const unreadBadge = unreadCount > 0 ? `<span class="unread-badge">${unreadCount}</span>` : '';
-
-        const safeName = (user.name || '').replace(/'/g, "\\'"); // מונע שגיאה אם יש גרש בשם
-        const safeBook = sharedBooks.split(',')[0].replace(/'/g, "\\'");
-
-        const badge = getUserBadgeHtml(user);
-        const div = document.createElement('div');
-        div.className = 'goal-item'; // שימוש בעיצוב הקיים של כרטיסים
-        div.innerHTML = `
-            <div class="goal-header">
-                <span class="goal-title">${badge}${user.name}</span>
-                <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
-                    <span style="font-size:0.8rem; background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:10px;">חברותא פעילה</span>
-                    ${sharedBooks ? `<span style="font-size:0.8rem; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px;">${sharedBooks}</span>` : ''}
-                </div>
-            </div>
-            <div style="font-size:0.9rem; margin-top:5px;">
-                <div><i class="fas fa-map-marker-alt"></i> ${user.city || 'לא צוין'}</div>
-                ${user.age ? `<div><i class="fas fa-birthday-cake"></i> ${user.age}</div>` : ''}
-                <div><i class="fas fa-phone"></i> <a href="tel:${user.phone}">${user.phone || 'לא הוזן'}</a></div>
-            </div>
-            <div style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap;">
-                <button class="btn-elegant" onclick="showUserDetails('${user.email}')">
-                    <i class="fas fa-user"></i> פרופיל
-                </button>
-                <button class="btn-elegant" onclick="openChat('${user.email}', '${safeName}')">
-                    <i class="fas fa-comments"></i> צ'אט ${unreadBadge}
-                </button>
-                <button class="btn-elegant" onclick="openScheduleModal('${user.email}', '${sharedBooks}', '${safeName}')">
-                    <i class="fas fa-clock"></i> זמנים
-                </button>
-                <button class="btn-elegant" onclick="openBookText('${safeBook}')">
-                    <i class="fas fa-book-reader"></i> פתח ספר
-                </button>
-                <button class="btn-elegant" style="color:#ef4444; border-color:#ef4444;" onclick="cancelChavruta('${user.email}')">
-                    <i class="fas fa-user-times"></i> ביטול
-                </button>
-            </div>
-        `;
-        list.appendChild(div);
-    });
-
-    if (pendingSentRequests.length > 0) {
-        const pendingHeader = document.createElement('h3');
-        pendingHeader.innerHTML = '<i class="fas fa-hourglass-half"></i> בקשות ממתינות לאישור';
-        pendingHeader.style.marginTop = '20px';
-        list.appendChild(pendingHeader);
-
-        pendingSentRequests.forEach(req => {
-            const user = globalUsersData.find(u => u.email === req.receiver);
-            const name = user ? user.name : req.receiver;
-
-            const div = document.createElement('div');
-            div.className = 'goal-item';
-            div.style.background = '#fff7ed';
-            div.style.borderColor = '#fdba74';
-            div.innerHTML = `
-                <div class="goal-header">
-                    <span class="goal-title">${name}</span>
-                    <span style="font-size:0.8rem; color:#f97316;">ממתין לאישור</span>
-                </div>
-                <div style="font-size:0.9rem;">ספר: <strong>${req.book}</strong></div>
-                <button class="btn-outline" style="margin-top:5px; font-size:0.8rem; color:#ef4444; border-color:#ef4444; padding:4px 8px; width:auto;" onclick="cancelSentRequest('${req.receiver}', '${req.book}')">
-                    <i class="fas fa-times"></i> בטל בקשה
-                </button>
-            `;
-            list.appendChild(div);
-        });
-    }
 }
 
 function openBookText(bookName) {
@@ -3330,6 +1898,7 @@ function openScheduleModal(email, book, name) {
 }
 
 async function saveSchedule() {
+    if (!requireAuth()) return;
     if (!currentScheduleKey) return;
     const days = Array.from(document.querySelectorAll('.day-checkbox:checked')).map(cb => cb.value);
     const time = document.getElementById('scheduleTime').value;
@@ -3375,7 +1944,19 @@ async function saveSchedule() {
 function renderCalendar() {
     const container = document.getElementById('calendarView');
     if (!container) return;
-    container.innerHTML = '';
+    
+    // Header
+    let html = `
+    <div class="flex items-center gap-3 mb-6 justify-start">
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-white m-0">לוח זמנים שבועי</h2>
+        <div class="text-blue-900 dark:text-blue-400">
+            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+            </svg>
+        </div>
+    </div>
+    <div class="space-y-6">
+    `;
 
     const schedules = JSON.parse(localStorage.getItem('chavruta_schedules') || '{}');
     const daysMap = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -3387,16 +1968,30 @@ function renderCalendar() {
 
         if (dayItems.length > 0) {
             hasEvents = true;
-            let html = `<div class="calendar-day"><div class="calendar-day-header">${daysMap[i]}</div>`;
-            dayItems.forEach(item => html += `<div class="calendar-event"><strong>${item.time}</strong> - ${item.partnerName}</div>`);
-            html += `</div>`;
-            container.innerHTML += html;
+            html += `
+            <section class="bg-white dark:bg-slate-800 rounded-2xl p-6 soft-shadow">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4 border-b border-gray-100 dark:border-slate-700 pb-2">יום ${daysMap[i]}</h3>
+                <div class="space-y-3">
+            `;
+            dayItems.forEach(item => {
+                html += `
+                <div class="day-strip bg-blue-50/50 dark:bg-slate-700/50 p-4 rounded-lg flex justify-between items-center">
+                    <span class="text-gray-500 dark:text-gray-300 font-medium">${item.time}</span>
+                    <span class="text-blue-900 dark:text-blue-300 font-semibold">עם ${item.partnerName} (${item.book})</span>
+                </div>
+                `;
+            });
+            html += `</div></section>`;
         }
     }
-    if (!hasEvents) container.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">אין זמני לימוד קבועים.</div>';
+    if (!hasEvents) html += '<div style="text-align:center; color:#94a3b8; padding:20px;">אין זמני לימוד קבועים.</div>';
+    
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 async function cancelChavruta(partnerEmail) {
+    if (!requireAuth()) return;
     if (!(await customConfirm("האם אתה בטוח שברצונך לבטל את החברותא עם משתמש זה?"))) return;
 
     try {
@@ -3514,6 +2109,7 @@ function closeReportModal() {
 }
 
 async function submitReport() {
+    if (!requireAuth()) return;
     const target = document.getElementById('reportTargetEmail').value;
     const reason = document.getElementById('reportReason').value;
     if (!reason) return customAlert("נא לפרט את סיבת הדיווח");
@@ -3559,6 +2155,15 @@ function setupRealtime() {
                     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
                     audio.play().catch(e => console.error("Audio error", e));
                 }
+
+                // My sent request was approved
+                if (payload.eventType === 'UPDATE' && newItem.status === 'approved' && oldItem.status === 'pending' && newItem.sender_email === currentUser.email) {
+                    const receiverUser = globalUsersData.find(u => u.email === newItem.receiver_email);
+                    const receiverName = receiverUser ? receiverUser.name : newItem.receiver_email;
+                    addNotification(`🎉 בקשת החברותא שלך עם ${receiverName} על הספר "${newItem.book_name}" אושרה!`);
+                    showToast(`החברותא עם ${receiverName} אושרה!`, "success");
+                }
+
                 checkIncomingRequests();
                 syncGlobalData();
             }
@@ -3781,31 +2386,36 @@ function formatBroadcast(tag) {
 // === ניהול אדמין ===
 let keySequence = [];
 document.addEventListener('keydown', async (e) => {
-    // Reset sequence if a non-modifier key is pressed without Alt, or if Escape is pressed.
-    if ((!e.altKey && !e.ctrlKey && !e.metaKey && e.key.length === 1) || e.key === 'Escape') {
+    // Do not reset if only a modifier key is pressed
+    if (e.key === 'Alt' || e.key === 'Control' || e.key === 'Shift' || e.key === 'Meta') {
+        return;
+    }
+
+    if (e.key === 'Escape') {
         keySequence = [];
-        // Do not return here, to allow the original logic to process other keys if needed.
+        return;
+    }
+
+    if (!e.altKey) {
+        keySequence = [];
     }
 
     if (e.altKey) {
         const k = e.key.toLowerCase();
+        if (k.length === 1) e.preventDefault(); // Prevent browser default actions for Alt+key
+
         keySequence.push(k);
 
-        // Keep the sequence to a manageable length (e.g., last 5 keys)
         if (keySequence.length > 5) keySequence.shift();
 
         const seqStr = keySequence.join('');
 
         // Admin sequence: Alt + A, R, I
         if (seqStr.endsWith('ari') || seqStr.endsWith('שרן')) {
-            e.preventDefault();
             keySequence = []; // Reset after successful trigger
-            const pass = await customPrompt("הכנס סיסמת מנהל:");
-            if (pass === "כל יכול") {
-                switchScreen('admin');
-                renderAdminPanel();
-            } else if (pass) await customAlert("סיסמה שגויה");
-            return; // Stop further processing
+            switchScreen('admin');
+            renderAdminPanel();
+            return;
         }
 
         // Data War sequence: Alt + C, O
@@ -3820,23 +2430,6 @@ document.addEventListener('keydown', async (e) => {
         }
     }
 });
-
-function switchAdminTab(tabName) {
-    document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
-    document.getElementById(`admin-sec-${tabName}`).classList.add('active');
-
-    document.querySelectorAll('.admin-tab-btn').forEach(el => el.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-
-    if (tabName === 'users') renderAdminUsersTable();
-    if (tabName === 'reports') renderAdminReports();
-    if (tabName === 'inbox') renderAdminInbox();
-    if (tabName === 'donations') renderAdminDonations();
-    if (tabName === 'ads') loadAdsForAdmin();
-    if (tabName === 'suggestions') renderAdminSuggestions();
-    if (tabName === 'marketing') renderAdminMarketing();
-    if (tabName === 'tools') renderAdminTools();
-}
 
 // --- בחירת משתמשים למחיקת צ'אט ---
 let selectedUsersForDelete = [];
@@ -3880,131 +2473,6 @@ function confirmUserSelection() {
     document.getElementById('userSelectionModal').style.display = 'none';
 }
 
-function renderAdminPanel() {
-    // עדכון סטטיסטיקה כללית (מוצג תמיד או בדשבורד)
-    document.getElementById('adminTotalUsers').innerText = globalUsersData.length;
-
-    const now = new Date();
-    const onlineUsers = globalUsersData.filter(u => u.lastSeen && (now - new Date(u.lastSeen) < 5 * 60 * 1000));
-    document.getElementById('adminOnlineCount').innerText = onlineUsers.length;
-
-    updateAdminChart();
-    // אם אנחנו בלשונית משתמשים, נרענן את הטבלה
-    if (document.getElementById('admin-sec-users').classList.contains('active')) renderAdminUsersTable();
-}
-
-function renderAdminUsersTable() {
-    const search = document.getElementById('adminSearch').value.toLowerCase();
-    const tbody = document.getElementById('adminUsersList');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    const now = new Date();
-    const onlineUsers = globalUsersData.filter(u => u.lastSeen && (now - new Date(u.lastSeen) < 5 * 60 * 1000));
-
-    const onlineList = document.getElementById('adminOnlineList');
-    onlineList.innerHTML = '';
-    if (onlineUsers.length === 0) onlineList.innerHTML = '<span style="color:#64748b; font-size:0.85rem;">אין משתמשים מחוברים כעת</span>';
-    else {
-        onlineUsers.forEach(u => {
-            const chip = document.createElement('div');
-            chip.style.cssText = "background:#1e293b; border:1px solid #22c55e; color:#fff; padding:4px 10px; border-radius:15px; font-size:0.8rem; display:flex; align-items:center; gap:5px;";
-            chip.innerHTML = `<div style="width:6px; height:6px; background:#22c55e; border-radius:50%;"></div> ${u.name}`;
-            onlineList.appendChild(chip);
-        });
-    }
-
-    const filteredUsers = globalUsersData.filter(u =>
-        u.name.toLowerCase().includes(search) ||
-        u.email.toLowerCase().includes(search) ||
-        (u.city && u.city.toLowerCase().includes(search))
-    );
-
-    // מיון לפי פעילות אחרונה (מהחדש לישן)
-    filteredUsers.sort((a, b) => new Date(b.lastSeen || 0) - new Date(a.lastSeen || 0));
-
-    filteredUsers.forEach(u => {
-        const isOnline = u.lastSeen && (new Date() - new Date(u.lastSeen) < 5 * 60 * 1000);
-        const lastSeenText = u.lastSeen ? new Date(u.lastSeen).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'לא ידוע';
-        const onlineIndicator = isOnline ? '<span style="display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; margin-left:5px;" title="מחובר כעת"></span>' : '';
-        const subText = (u.subscription && u.subscription.level > 0) ? `<span style="color:#d97706; font-weight:bold;">${u.subscription.name}</span>` : '-';
-        const isBanned = u.is_banned;
-
-        const tr = document.createElement('tr');
-        if (isBanned) tr.style.background = 'rgba(239, 68, 68, 0.1)';
-
-        tr.innerHTML = `
-            <td>${onlineIndicator}${u.name} ${isBanned ? '<span style="color:red; font-weight:bold;">(חסום)</span>' : ''}</td>
-            <td>${u.email}</td>
-            <td>${u.city}</td>
-            <td>${subText}</td>
-            <td style="text-align:center; white-space:nowrap;">
-                <button class="admin-btn" style="background:#8b5cf6; color:white;" onclick="adminSendPrivateMessage('${u.email}')" title="שלח הודעה אישית"><i class="fas fa-paper-plane"></i></button>
-                <button class="admin-btn" style="background:#3b82f6; color:white;" onclick="adminViewChats('${u.email}')" title="צפה בצ'אטים"><i class="fas fa-comments"></i></button>
-                <button class="admin-btn" style="background:#f59e0b; color:black;" onclick="adminViewSecurity('${u.email}')" title="צפה בפרטי אבטחה"><i class="fas fa-key"></i></button>
-                <button class="admin-btn" style="background:#14b8a6; color:white;" onclick="adminViewNotes('${u.email}')" title="צפה בהערות"><i class="fas fa-sticky-note"></i></button>
-                <button class="admin-btn" style="background:#10b981; color:white;" onclick="adminEditUser('${u.email}')" title="ערוך"><i class="fas fa-edit"></i></button>
-                ${isBanned ?
-                `<button class="admin-btn" style="background:#22c55e; color:white;" onclick="adminUnbanUser('${u.email}')" title="בטל חסימה"><i class="fas fa-unlock"></i></button>` :
-                `<button class="admin-btn" style="background:#ef4444; color:white;" onclick="adminBanUser('${u.email}')" title="מחק/חסום"><i class="fas fa-ban"></i></button>`
-            }
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-async function adminUnbanUser(email) {
-    if (!(await customConfirm(`האם לבטל את החסימה למשתמש ${email}?`))) return;
-    try {
-        await supabaseClient.from('users').update({ is_banned: false }).eq('email', email);
-        showToast("החסימה בוטלה.", "success");
-        await syncGlobalData();
-        renderAdminUsersTable();
-    } catch (e) { await customAlert("שגיאה בביטול חסימה: " + e.message); }
-}
-
-async function renderAdminSuggestions() {
-    const list = document.getElementById('adminSuggestionsList');
-    list.innerHTML = 'טוען...';
-    const { data, error } = await supabaseClient.from('suggestions').select('*').order('created_at', { ascending: false });
-
-    if (error || !data || data.length === 0) {
-        list.innerHTML = 'אין הצעות.';
-        return;
-    }
-
-    list.innerHTML = '';
-    data.forEach(s => {
-        const div = document.createElement('div');
-        div.style.cssText = "background:#0f172a; padding:15px; margin-bottom:10px; border-radius:8px; border:1px solid #334155;";
-        div.innerHTML = `
-            <div style="color:#94a3b8; font-size:0.8rem; margin-bottom:5px;">${s.user_email} | ${new Date(s.created_at).toLocaleDateString()}</div>
-            <div style="color:#fff;">${s.content}</div>
-        `;
-        list.appendChild(div);
-    });
-}
-
-async function renderAdminMarketing() {
-    const list = document.getElementById('adminMarketingList');
-    list.innerHTML = 'טוען...';
-    const { data } = await supabaseClient.from('users').select('email, display_name').eq('marketing_consent', true);
-
-    if (!data || data.length === 0) {
-        list.innerHTML = 'אין נרשמים.';
-        return;
-    }
-
-    list.innerHTML = `<div style="color:#fff; margin-bottom:10px;">סה"כ רשומים: ${data.length}</div>`;
-    const ul = document.createElement('ul');
-    ul.style.color = '#cbd5e1';
-    data.forEach(u => {
-        ul.innerHTML += `<li>${u.email} (${u.display_name})</li>`;
-    });
-    list.appendChild(ul);
-}
-
 async function downloadMarketingList() {
     const { data } = await supabaseClient.from('users').select('email').eq('marketing_consent', true);
     if (!data || data.length === 0) return customAlert("אין נתונים להורדה");
@@ -4018,255 +2486,14 @@ async function downloadMarketingList() {
     a.click();
 }
 
-async function adminViewNotes(email) {
-    const modal = document.getElementById('adminNotesModal');
-    const title = document.getElementById('adminNotesTitle');
-    const content = document.getElementById('adminNotesContent');
-
-    title.innerText = `הערות של ${email}`;
-    content.innerHTML = 'טוען...';
-    modal.style.display = 'flex';
-    bringToFront(modal);
-
-    const { data, error } = await supabaseClient.from('user_goals').select('book_name, notes').eq('user_email', email);
-
-    if (error || !data) {
-        content.innerHTML = 'שגיאה בטעינת הערות.';
-        return;
-    }
-
-    const notesByBook = data.filter(g => g.notes && Array.isArray(g.notes) && g.notes.length > 0);
-    if (notesByBook.length === 0) {
-        content.innerHTML = 'למשתמש זה אין הערות שמורות.';
-        return;
-    }
-
-    content.innerHTML = notesByBook.map(book => `<h4>${book.book_name}</h4><ul>${book.notes.map(note => `<li>${note.content}</li>`).join('')}</ul>`).join('<hr>');
-}
-
-
-async function adminViewSecurity(email) {
-    const u = globalUsersData.find(user => user.email === email);
-    if (!u) return;
-
-    let secInfo = `<strong>סיסמה:</strong> ${u.password || 'לא ידועה'}<br><br>`;
-    if (u.security_questions && u.security_questions.length > 0) {
-        secInfo += `<strong>שאלות אבטחה:</strong><br>`;
-        u.security_questions.forEach((q, i) => {
-            secInfo += `${i + 1}. ${q.q} <br> תשובה: ${q.a}<br>`;
-        });
-    } else {
-        secInfo += `אין שאלות אבטחה מוגדרות.`;
-    }
-
-    await customAlert(secInfo, true);
-}
-
-async function renderAdminInbox() {
-    const list = document.getElementById('adminInboxList');
-    list.innerHTML = '<div style="text-align:center; color:#94a3b8;">טוען הודעות...</div>';
-
-    // שליפת הודעות שנשלחו ל-admin@system או למייל של המנהל הנוכחי
-    const { data, error } = await supabaseClient
-        .from('chat_messages')
-        .select('*')
-        .eq('receiver_email', 'admin@system') // רק הודעות למערכת
-        .order('created_at', { ascending: false });
-
-    if (error || !data) {
-        list.innerHTML = '<div style="text-align:center; color:#ef4444;">שגיאה בטעינת הודעות</div>';
-        return;
-    }
-
-    // קיבוץ לפי שולח
-    const conversations = {};
-    data.forEach(msg => {
-        if (!conversations[msg.sender_email]) {
-            conversations[msg.sender_email] = {
-                lastMsg: msg,
-                count: 0,
-                unread: 0
-            };
-        }
-        conversations[msg.sender_email].count++;
-        if (!msg.is_read) conversations[msg.sender_email].unread++;
-    });
-
-    list.innerHTML = '';
-    if (Object.keys(conversations).length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">אין הודעות נכנסות</div>';
-        return;
-    }
-
-    Object.keys(conversations).forEach(email => {
-        const conv = conversations[email];
-        const user = globalUsersData.find(u => u.email === email);
-        const name = user ? user.name : email;
-        const date = new Date(conv.lastMsg.created_at).toLocaleString('he-IL');
-
-        const div = document.createElement('div');
-        div.className = `inbox-item ${conv.unread > 0 ? 'unread' : ''}`;
-        div.innerHTML = `
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <strong style="color:#fff; font-size:1rem;">${name} <span style="font-size:0.8rem; color:#94a3b8;">(${email})</span></strong>
-                <span style="color:#64748b; font-size:0.8rem;">${date}</span>
-            </div>
-            <div style="color:#cbd5e1; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                ${conv.lastMsg.message}
-            </div>
-            ${conv.unread > 0 ? `<div style="margin-top:5px;"><span style="background:#f59e0b; color:#000; font-size:0.7rem; padding:2px 6px; border-radius:4px;">${conv.unread} חדשות</span></div>` : ''}
-        `;
-        div.onclick = () => {
-            // פתיחת צ'אט רגיל עם המשתמש
-            openChat(email, name);
-            // סימון כנקרא (נעשה אוטומטית בפתיחת הצ'אט)
-        };
-        list.appendChild(div);
-    });
-}
-
-function renderAdminDonations() {
-    const currentProgress = localStorage.getItem('torahApp_campaign_progress') || 60;
-    const container = document.getElementById('adminDonationsList');
-
-    let html = `
-        <div style="background:#0f172a; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #334155;">
-            <h4 style="color:#fff; margin-top:0;">ניהול קמפיין תרומות</h4>
-            <label for="adminCampaignInput" style="color:#cbd5e1; display:block; margin-bottom:5px;">אחוז התקדמות במד (0-100):</label>
-            <div style="display:flex; gap:10px;">
-                <input type="number" id="adminCampaignInput" value="${currentProgress}" class="admin-input" style="width:100px;">
-                <button class="admin-btn" style="background:#22c55e; color:#fff; font-size:1rem;" onclick="saveCampaignProgress()">עדכן מד</button>
-            </div>
-        </div>
-        <div style="background:#0f172a; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #334155;">
-            <h4 style="color:#fff; margin-top:0;">הודעה לכל התורמים</h4>
-            <textarea id="adminDonorsMsg" class="admin-input" placeholder="הקלד הודעה..." style="height: 80px;"></textarea>
-            <button class="admin-btn" style="background: #8b5cf6; color: #fff; font-size: 1rem; padding: 8px 15px; margin-top: 10px;" onclick="adminSendToDonors()">שלח לכולם</button>
-        </div>
-        <h3 style="color:#fff; border:none; margin-bottom:15px;">רשימת תורמים ומנויים</h3>
-    `;
-
-    // Table
-    const donors = globalUsersData.filter(u => u.subscription && u.subscription.level > 0);
-    // Sort by subscription date, newest first
-    donors.sort((a, b) => {
-        const dateA = a.subscription.subscription_date ? new Date(a.subscription.subscription_date) : new Date(0);
-        const dateB = b.subscription.subscription_date ? new Date(b.subscription.subscription_date) : new Date(0);
-        return dateB - dateA;
-    });
-
-    if (donors.length === 0) {
-        html += '<div style="color:#94a3b8; text-align:center; padding:20px;">אין מנויים פעילים כרגע.</div>';
-    } else {
-        html += `<div style="overflow-x:auto;"><table class="admin-table">
-            <thead><tr style="background:#0f172a;"><th>שם</th><th>אימייל</th><th>מסלול</th><th>סכום חודשי</th><th>תאריך הצטרפות</th></tr></thead>
-            <tbody>`;
-        donors.forEach(u => {
-            const joinDate = u.subscription.subscription_date ? new Date(u.subscription.subscription_date).toLocaleDateString('he-IL') : 'לא ידוע';
-            html += `<tr>
-                <td>${u.name}</td>
-                <td>${u.email}</td>
-                <td>${u.subscription.name}</td>
-                <td>₪${u.subscription.amount}</td>
-                <td>${joinDate}</td>
-            </tr>`;
-        });
-        html += `</tbody></table></div>`;
-    }
-
-    container.innerHTML = html;
-}
-
-function updateAdminChart() {
-    const ctx = document.getElementById('adminActivityChart');
-    if (!ctx) return;
-
-    // הכנת נתונים: קיבוץ משתמשים לפי שעת פעילות אחרונה
-    const hours = Array(24).fill(0);
-    const now = new Date();
-
-    globalUsersData.forEach(u => {
-        if (u.lastSeen) {
-            const d = new Date(u.lastSeen);
-            // אם הפעילות הייתה ב-24 שעות האחרונות
-            if (now - d < 24 * 60 * 60 * 1000) {
-                hours[d.getHours()]++;
-            }
-        }
-    });
-
-    // יצירת תוויות לשעות (למשל: 14:00, 15:00...)
-    const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
-
-    if (adminChartInstance) {
-        adminChartInstance.data.datasets[0].data = hours;
-        adminChartInstance.update();
-    } else {
-        adminChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'משתמשים פעילים',
-                    data: hours,
-                    backgroundColor: '#3b82f6',
-                    borderColor: '#2563eb',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
-                },
-                plugins: {
-                    legend: { labels: { color: '#fff' } }
-                }
-            }
-        });
-    }
-}
-
-async function adminSendPrivateMessage(targetEmail) {
-    // פתיחת צ'אט רגיל, אך מכיוון שאנחנו במצב ניהול, זה יישלח כ-admin@system
-    openChat(targetEmail, targetEmail);
-}
-
 function saveCampaignProgress() {
     const val = document.getElementById('adminCampaignInput').value;
     localStorage.setItem('torahApp_campaign_progress', val);
     customAlert('ההתקדמות עודכנה בהצלחה!');
 }
 
-
-async function adminSendToDonors() {
-    const msg = document.getElementById('adminDonorsMsg').value;
-    if (!msg) return customAlert('יש לכתוב תוכן להודעה.');
-    if (!(await customConfirm('האם לשלוח הודעה זו לכל התורמים והמנויים?'))) return;
-
-    const donors = globalUsersData.filter(u => u.subscription && u.subscription.level > 0);
-    if (donors.length === 0) return customAlert('לא נמצאו תורמים לשליחה.');
-
-    const messages = donors.map(donor => ({
-        sender_email: 'admin@system',
-        receiver_email: donor.email,
-        message: msg
-    }));
-
-    try {
-        const { error } = await supabaseClient.from('chat_messages').insert(messages);
-        if (error) throw error;
-        showToast(`הודעה נשלחה ל-${donors.length} תורמים.`, 'success');
-        document.getElementById('adminDonorsMsg').value = '';
-    } catch (e) {
-        console.error(e);
-        await customAlert('שגיאה בשליחת ההודעות.');
-    }
-}
-
-
 async function sendSystemBroadcast() {
+    if (!requireAuth()) return;
     const msg = document.getElementById('adminSystemMsg').value.replace(/\n/g, '<br>');
     if (!msg) return;
 
@@ -4279,202 +2506,6 @@ async function sendSystemBroadcast() {
         console.error(e);
         await customAlert('שגיאה בשליחת ההודעה.');
     }
-}
-
-async function adminViewChats(email) {
-    const modal = document.getElementById('adminChatModal');
-    const content = document.getElementById('adminChatContent');
-    modal.style.display = 'flex';
-    bringToFront(modal);
-    content.innerHTML = '<div style="text-align:center;">טוען רשימת צ\'אטים...</div>';
-
-    // שליפת כל ההודעות של המשתמש כדי לקבץ לפי שיחות
-    const { data, error } = await supabaseClient
-        .from('chat_messages')
-        .select('sender_email, receiver_email, message, created_at')
-        .or(`sender_email.eq.${email},receiver_email.eq.${email}`)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        content.innerHTML = '<div style="color:red; text-align:center;">שגיאה בטעינת הודעות</div>';
-        return;
-    }
-
-    if (!data || data.length === 0) {
-        content.innerHTML = '<div style="text-align:center; color:#64748b;">לא נמצאו צ\'אטים למשתמש זה.</div>';
-        return;
-    }
-
-    // קיבוץ לפי בן שיח
-    const chats = {};
-    data.forEach(msg => {
-        const partner = msg.sender_email === email ? msg.receiver_email : msg.sender_email;
-        if (!chats[partner]) chats[partner] = [];
-        chats[partner].push(msg);
-    });
-
-    content.innerHTML = `<h4 style="margin-top:0;">רשימת שיחות של ${email}</h4>`;
-    const list = document.createElement('div');
-
-    Object.keys(chats).forEach(partner => {
-        const item = document.createElement('div');
-        item.style.cssText = "background:#fff; padding:10px; margin-bottom:5px; border-radius:6px; cursor:pointer; border:1px solid #e2e8f0;";
-        item.innerHTML = `<strong>מול: ${partner}</strong> <span style="color:#64748b; font-size:0.8rem;">(${chats[partner].length} הודעות)</span>`;
-        item.onclick = () => openAdminChatConversation(email, partner, chats[partner]);
-        list.appendChild(item);
-    });
-    content.appendChild(list);
-}
-
-function openAdminChatConversation(userEmail, partnerEmail, messages) {
-    const content = document.getElementById('adminChatContent');
-    content.innerHTML = `
-        <div style="margin-bottom:10px;">
-            <button class="admin-btn" style="background:#64748b;" onclick="adminViewChats('${userEmail}')">חזור לרשימה</button>
-            <span style="margin-right:10px; font-weight:bold;">שיחה עם ${partnerEmail}</span>
-        </div>
-        <div style="background:#e2e8f0; padding:10px; border-radius:8px; height:60vh; overflow-y:auto;">
-    `;
-
-    // מיון הודעות (ישן לחדש)
-    messages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-    const container = content.querySelector('div:last-child');
-    messages.forEach(msg => {
-        const isUser = msg.sender_email === userEmail;
-        const div = document.createElement('div');
-        div.style.cssText = `
-            background: ${isUser ? '#dbeafe' : '#fff'}; 
-            padding: 8px; 
-            margin-bottom: 5px; 
-            border-radius: 6px; 
-            max-width: 80%; 
-            align-self: ${isUser ? 'flex-start' : 'flex-end'};
-            margin-${isUser ? 'left' : 'right'}: auto;
-        `;
-        div.innerHTML = `
-            <div style="font-size:0.75rem; color:#64748b; margin-bottom:2px;">${isUser ? userEmail : partnerEmail} | ${new Date(msg.created_at).toLocaleString('he-IL')}</div>
-            <div>${msg.message}</div>
-        `;
-        container.appendChild(div);
-    });
-    // גלילה למטה
-    container.scrollTop = container.scrollHeight;
-}
-
-function closeAdminChat() {
-    document.getElementById('adminChatModal').style.display = 'none';
-}
-
-async function adminDeleteUser(email) {
-    if (!(await customConfirm('למחוק את המשתמש ' + email + '? פעולה זו אינה הפיכה.'))) return;
-    try {
-        const { error } = await supabaseClient.from('users').delete().eq('email', email);
-        if (error) throw error;
-        showToast('משתמש נמחק', "info");
-        await syncGlobalData();
-        renderAdminPanel();
-    } catch (e) { await customAlert('שגיאה במחיקה: ' + e.message); }
-}
-
-async function adminEditUser(email) {
-    const u = globalUsersData.find(user => user.email === email);
-    if (!u) return;
-    const newName = await customPrompt('שם חדש:', u.name);
-    if (newName === null) return;
-    const newCity = await customPrompt('עיר חדשה:', u.city);
-    if (newCity === null) return;
-
-    if (newName !== null && newCity !== null) {
-        try {
-            const { error } = await supabaseClient.from('users').update({ display_name: newName, city: newCity }).eq('email', email);
-            if (error) throw error;
-            showToast('עודכן בהצלחה', "success");
-            await syncGlobalData();
-            renderAdminPanel();
-        } catch (e) { await customAlert('שגיאה בעדכון: ' + e.message); }
-    }
-}
-
-/* --- Toast Function --- */
-function showToast(text, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast-message toast-${type}`;
-
-    let icon = 'info-circle';
-    if (type === 'success') icon = 'check-circle';
-    if (type === 'error') icon = 'exclamation-circle';
-
-    toast.innerHTML = `<i class="fas fa-${icon} toast-icon"></i> <span>${text}</span>`;
-
-    container.prepend(toast);
-
-    // חישוב זמן תצוגה לפי אורך הטקסט (מינימום 3 שניות)
-    const duration = Math.max(3000, text.length * 60);
-
-    setTimeout(() => {
-        toast.style.animation = 'fadeOut 0.5s forwards';
-        setTimeout(() => toast.remove(), 500);
-    }, duration);
-}
-
-/* --- Input Validation --- */
-function validateInput(value, type) {
-    if (!value) return true; // Don't validate empty optional fields, the required attribute handles mandatory fields
-    value = value.trim();
-    if (value === '') return true;
-
-    switch (type) {
-        case 'email':
-            return /\S+@\S+\.\S+/.test(value);
-        case 'phone':
-            // Allows 05x-xxxxxxx, 0x-xxxxxxx, 0xx-xxxxxxx after stripping hyphens
-            return /^0\d{8,9}$/.test(value.replace(/-/g, ''));
-        case 'password':
-            // At least 6 chars, one letter, one number
-            return /(?=.*\d)(?=.*[a-zA-Z\u0590-\u05FF]).{6,}/.test(value);
-        case 'name':
-            // At least two letters, allows Hebrew, English and spaces, not just numbers
-            return /^[a-zA-Z\u0590-\u05FF\s]{2,}[a-zA-Z\u0590-\u05FF\s]*$/.test(value) && !/^\d+$/.test(value);
-        default:
-            return true;
-    }
-}
-/* --- פונקציות עזר למודאלים מותאמים אישית --- */
-function customAlert(msg, isHtml = false) {
-    return new Promise(resolve => {
-        document.getElementById('cAlertMsg').innerText = msg;
-        const msgEl = document.getElementById('cAlertMsg');
-        document.getElementById('customAlertModal').style.display = 'flex';
-        bringToFront(document.getElementById('customAlertModal'));
-        if (isHtml) {
-            msgEl.innerHTML = msg;
-        } else {
-            msgEl.innerText = msg;
-        }
-        const btn = document.getElementById('cAlertBtn');
-        btn.onclick = () => {
-            document.getElementById('customAlertModal').style.display = 'none';
-            resolve();
-        };
-    });
-}
-
-function customConfirm(msg) {
-    return new Promise(resolve => {
-        document.getElementById('cConfirmMsg').innerText = msg;
-        document.getElementById('customConfirmModal').style.display = 'flex';
-        bringToFront(document.getElementById('customConfirmModal'));
-        document.getElementById('cConfirmOk').onclick = () => {
-            document.getElementById('customConfirmModal').style.display = 'none';
-            resolve(true);
-        };
-        document.getElementById('cConfirmCancel').onclick = () => {
-            document.getElementById('customConfirmModal').style.display = 'none';
-            resolve(false);
-        };
-    });
 }
 
 function customPrompt(msg, defaultVal = '') {
@@ -4495,49 +2526,6 @@ function customPrompt(msg, defaultVal = '') {
             resolve(null);
         };
     });
-}
-
-async function renderAdminReports() {
-    const list = document.getElementById('adminReportsList');
-    list.innerHTML = '<div style="text-align:center; color:#94a3b8;">טוען דיווחים...</div>';
-
-    const { data, error } = await supabaseClient.from('user_reports').select('*').order('created_at', { ascending: false });
-
-    if (error || !data || data.length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">אין דיווחים חדשים</div>';
-        return;
-    }
-
-    list.innerHTML = '';
-    const table = document.createElement('table');
-    table.className = 'admin-table';
-    table.innerHTML = `<thead><tr style="background:#0f172a;"><th>מדווח</th><th>דווח ע"י</th><th>סיבה</th><th>תאריך</th><th>פעולות</th></tr></thead><tbody></tbody>`;
-
-    data.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td style="color:#ef4444; font-weight:bold;">${r.reported_email}</td>
-            <td>${r.reporter_email}</td>
-            <td>${r.reason}</td>
-            <td>${new Date(r.created_at).toLocaleDateString('he-IL')}</td>
-            <td>
-                <button class="admin-btn" style="background:#ef4444; color:white;" onclick="adminBanUser('${r.reported_email}')">חסום משתמש</button>
-            </td>
-        `;
-        table.querySelector('tbody').appendChild(tr);
-    });
-    list.appendChild(table);
-}
-
-async function adminBanUser(email) {
-    if (!(await customConfirm(`האם לחסום את המשתמש ${email}?`))) return;
-    try {
-        // חסימה ב-DB
-        await supabaseClient.from('users').update({ is_banned: true }).eq('email', email);
-        // שליחת הודעת מערכת למשתמש (אופציונלי, כדי לנתק אותו מיד אם הוא מחובר לסוקט)
-        // ה-Realtime Listener ב-setupRealtime יטפל בזה
-        showToast("המשתמש נחסם בהצלחה.", "error");
-    } catch (e) { await customAlert("שגיאה בחסימה: " + e.message); }
 }
 
 async function checkBanLifted() {
@@ -4582,27 +2570,8 @@ document.addEventListener('click', function (event) {
     }
 });
 
-/* --- בדיקת הודעות מהמנהל (עבור המשתמש) --- */
-async function checkAdminMessagesForUser() {
-    if (!currentUser) return;
-
-    const { data, error } = await supabaseClient
-        .from('chat_messages')
-        .select('*')
-        .eq('receiver_email', currentUser.email)
-        .eq('sender_email', 'admin@system')
-        .eq('is_read', false);
-
-    const badge = document.getElementById('profileAdminBadge');
-    if (data && data.length > 0) {
-        badge.innerText = data.length;
-        badge.style.display = 'inline-block';
-    } else {
-        badge.style.display = 'none';
-    }
-}
-
 async function sendAppeal() {
+    if (!requireAuth()) return;
     const msg = document.getElementById('appealMsg').value;
     const email = sessionStorage.getItem('banned_email');
     if (!msg) return customAlert("נא לכתוב תוכן לפנייה");
@@ -4711,17 +2680,8 @@ async function loadAds() {
     }
 }
 
-async function loadAdsForAdmin() {
-    try {
-        const { data, error } = await supabaseClient.from('settings').select('value').eq('key', 'ads_content').single();
-        if (error || !data) throw error || new Error("No data");
-        document.getElementById('adminAdsContent').value = data.value || '';
-    } catch (e) {
-        document.getElementById('adminAdsContent').value = '';
-    }
-}
-
 async function addSiyumReaction(siyumId, btn) {
+    if (!requireAuth()) return;
     try {
         const { error } = await supabaseClient.from('siyum_reactions').insert({ siyum_id: siyumId, reactor_email: currentUser.email });
 
@@ -4739,144 +2699,6 @@ async function addSiyumReaction(siyumId, btn) {
 
 }
 
-// === פונקציות ניהול בוטים וכלים ===
-async function renderAdminTools() {
-    const list = document.getElementById('adminBotsList');
-    list.innerHTML = 'טוען בוטים...';
-
-    const { data: bots } = await supabaseClient.from('users').select('*').eq('is_bot', true);
-
-    list.innerHTML = '';
-    if (bots && bots.length > 0) {
-        bots.forEach(bot => {
-            const div = document.createElement('div');
-            div.style.cssText = "background:#1e293b; padding:10px; border-radius:8px; border:1px solid #334155; text-align:center; cursor:pointer; transition:0.2s;";
-            div.onmouseover = () => div.style.borderColor = '#3b82f6';
-            div.onmouseout = () => div.style.borderColor = '#334155';
-            div.onclick = () => loginAsBot(bot);
-
-            div.innerHTML = `
-                <div style="font-size:2rem; margin-bottom:5px;">🤖</div>
-                <div style="font-weight:bold; color:#fff; margin-bottom:10px;">${bot.display_name}</div>
-                <button class="admin-btn" style="background:#ef4444; color:white; width:100%; margin:0;" onclick="event.stopPropagation(); adminDeleteBot('${bot.email}')"><i class="fas fa-trash"></i> מחק בוט</button>
-            `;
-            list.appendChild(div);
-        });
-    } else {
-        list.innerHTML = '<div style="color:#94a3b8;">אין בוטים מוגדרים.</div>';
-    }
-}
-
-async function createBot() {
-    const name = document.getElementById('newBotName').value;
-    if (!name) return customAlert("נא להזין שם לבוט");
-
-    const botEmail = `user_${Math.random().toString(36).substring(2, 10)}@local.app`;
-    const botPass = `bot${Date.now()}`; // סיסמה אקראית
-
-    try {
-        const { error } = await supabaseClient.from('users').insert([{
-            email: botEmail,
-            password: botPass,
-            display_name: name,
-            is_bot: true,
-            is_anonymous: false
-        }]);
-
-        if (error) throw error;
-        showToast("בוט נוצר בהצלחה!", "success");
-        document.getElementById('newBotName').value = '';
-        renderAdminTools();
-    } catch (e) {
-        console.error(e);
-        await customAlert("שגיאה ביצירת בוט");
-    }
-}
-
-function loginAsBot(botUser) {
-    realAdminUser = currentUser; // שמירת המנהל המקורי
-    currentUser = mapUserFromDB(botUser);
-    currentUser.isBot = true;
-    previousRank = null;
-
-    // איפוס מוחלט של נתונים מקומיים
-    userGoals = []; // איפוס לימודים
-    chavrutaConnections = []; // איפוס חברותות
-    unreadMessages = {}; // איפוס הודעות
-    approvedPartners = new Set(); // איפוס חברים מאושרים
-    pendingSentRequests = []; // איפוס בקשות
-    notifications = []; // איפוס התראות
-
-    // ניקוי ויזואלי מיידי
-    document.getElementById('goalsList').innerHTML = '';
-    document.getElementById('chavrutasList').innerHTML = '';
-    document.getElementById('dailyTasksList').innerHTML = '';
-
-    localStorage.setItem('torahApp_goals', '[]'); // איפוס לוקאלי
-    localStorage.setItem('torahApp_user', JSON.stringify(currentUser));
-    // אין צורך ברענון מלא, אפשר לעדכן את הממשק
-    document.getElementById('bot-mode-indicator').style.display = 'block';
-    document.getElementById('headerUserEmail').style.display = 'none';
-    updateProfileUI();
-    switchScreen('dashboard', document.querySelectorAll('.nav-item')[1]);
-    updateHeader();
-    updateNotifUI();
-    renderGoals();
-    renderChavrutas();
-    syncGlobalData();
-}
-
-function logoutBot() {
-    currentUser = realAdminUser;
-    realAdminUser = null;
-    localStorage.setItem('torahApp_user', JSON.stringify(currentUser));
-    location.reload(); // רענון כדי להיכנס כבוט
-}
-
-async function adminDeleteChatRange() {
-    const emailsInput = document.getElementById('resetChatEmail1').value;
-    const start = document.getElementById('resetChatStart').value;
-    const end = document.getElementById('resetChatEnd').value;
-
-    if (!start || !end) return customAlert("חובה להזין טווח תאריכים");
-    if (!(await customConfirm("פעולה זו תמחק הודעות לצמיתות. להמשיך?"))) return;
-
-    let query = supabaseClient.from('chat_messages').delete()
-        .gte('created_at', start + 'T00:00:00')
-        .lte('created_at', end + 'T23:59:59');
-
-    if (emailsInput) {
-        const emails = emailsInput.split(',').map(e => e.trim());
-        // מחיקת הודעות שבהן השולח או המקבל נמצאים ברשימה
-        // Supabase לא תומך ב-OR מורכב עם IN בצורה פשוטה ב-JS client בגרסאות ישנות, 
-        // אבל אפשר להשתמש ב-or עם רשימה.
-        // דרך פשוטה: נמחק הודעות שבהן sender IN list OR receiver IN list.
-        // התחביר: .or(`sender_email.in.(${emails}),receiver_email.in.(${emails})`)
-        const listStr = `(${emails.map(e => `"${e}"`).join(',')})`;
-        query = query.or(`sender_email.in.${listStr},receiver_email.in.${listStr}`);
-    }
-
-    try {
-        const { error, count } = await query; // count requires select usually, delete returns null data usually
-        if (error) throw error;
-        showToast("הודעות נמחקו בהצלחה.", "success");
-    } catch (e) {
-        console.error(e);
-        await customAlert("שגיאה במחיקה: " + e.message);
-    }
-}
-
-async function adminDeleteBot(email) {
-    if (!await customConfirm(`האם למחוק את הבוט ${email}?`)) return;
-    try {
-        const { error } = await supabaseClient.from('users').delete().eq('email', email).eq('is_bot', true);
-        if (error) throw error;
-        showToast("הבוט נמחק", "success");
-        renderAdminTools();
-    } catch (e) {
-        await customAlert("שגיאה במחיקת הבוט: " + e.message);
-    }
-}
 // === Data War Animation ===
 window.isNetworkMonitorActive = false;
 let isVerboseNetworkLog = false;
@@ -5138,6 +2960,7 @@ function closeThread() {
 }
 
 async function sendThreadMessage() {
+    if (!requireAuth()) return;
     const input = document.getElementById('thread-input');
     const text = input.value;
     if (!text || !activeThreadId) return;
@@ -5172,6 +2995,14 @@ async function sendThreadMessage() {
         // No need to append manually if realtime works, but for instant feedback we can rely on realtime or append a temp one.
         // Since we have realtime listener for chat_messages, it should appear automatically.
     } catch (e) { console.error(e); }
+}
+
+function toggleChatMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('chat-menu-dropdown');
+    if (menu) {
+        menu.classList.toggle('active');
+    }
 }
 
 // === Tracking Functions (Fix for Points 4 & 7) ===
@@ -5353,6 +3184,21 @@ window.onload = async function () {
     }
 };
 
+function getRatingRankName(rating) {
+    if (rating >= 50000) return "עוקר הרים ומשברם וטוחנן דק דק";
+    if (rating >= 10000) return "עוקר הרים";
+    if (rating >= 5000) return "רשכבה\"ג";
+    if (rating >= 3500) return "אב בי\"ד";
+    if (rating >= 1800) return "דיין מומחה";
+    if (rating >= 1000) return "דיין";
+    if (rating >= 750) return "רב עיר";
+    if (rating >= 500) return "רב שכונה";
+    if (rating >= 300) return "מו\"צ";
+    if (rating >= 150) return "רב";
+    if (rating >= 50) return "אברך";
+    return "מתחיל";
+}
+
 function showAchievements() {
     const totalLearned = userGoals.reduce((sum, g) => sum + g.currentUnit, 0);
     const currentRank = getRankName(totalLearned);
@@ -5365,6 +3211,22 @@ function showAchievements() {
 
     const remaining = Math.max(0, nextThreshold - totalLearned);
     const rating = currentUser.chat_rating || 0;
+    
+    // חישוב דרגת רייטינג
+    const ratingRank = getRatingRankName(rating);
+    const ratingThresholds = [50, 150, 300, 500, 750, 1000, 1800, 3500, 5000, 10000, 50000];
+    let nextRatingThreshold = 50000;
+    let nextRatingRankName = "";
+    
+    for (let t of ratingThresholds) {
+        if (rating < t) {
+            nextRatingThreshold = t;
+            nextRatingRankName = getRatingRankName(t);
+            break;
+        }
+    }
+    const ratingRemaining = Math.max(0, nextRatingThreshold - rating);
+    const ratingProgress = rating >= 50000 ? 100 : (rating / nextRatingThreshold) * 100;
 
     const content = `
         <h3 style="text-align:center; color:var(--accent);">ההישגים שלי</h3>
@@ -5383,11 +3245,14 @@ function showAchievements() {
         
         <div style="margin:20px 0; border-top:1px solid #eee; padding-top:20px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <strong>דירוג חברתי (לייקים)</strong>
-                <span>${rating}</span>
+                <strong>רייטינג: ${ratingRank}</strong>
+                <span>${rating} נקודות</span>
             </div>
             <div class="progress-container" style="height:15px; background:#e2e8f0;">
-                <div class="progress-bar" style="width:${Math.min(100, rating)}%; background: linear-gradient(90deg, #ec4899, #8b5cf6);"></div>
+                <div class="progress-bar" style="width:${ratingProgress}%; background: linear-gradient(90deg, #ec4899, #8b5cf6);"></div>
+            </div>
+            <div style="text-align:center; font-size:0.9rem; color:#64748b; margin-top:5px;">
+                ${rating < 50000 ? `עוד ${ratingRemaining} נקודות לדרגת ${nextRatingRankName}` : 'הגעת לפסגת הרייטינג!'}
             </div>
         </div>
         
@@ -5404,6 +3269,53 @@ function showAchievements() {
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
     }
     document.getElementById('achievementsContent').innerHTML = content;
+    modal.style.display = 'flex';
+    bringToFront(modal);
+}
+
+function toHebrewDateString(dateString) {
+    if (!dateString) return 'תאריך לא ידוע';
+    try {
+        const date = new Date(dateString);
+        // Using Intl for proper Hebrew calendar conversion
+        const day = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { day: 'numeric' }).format(date);
+        const month = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { month: 'long' }).format(date);
+        const year = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { year: 'numeric' }).format(date);
+
+        const hebrewDay = toGematria(parseInt(day));
+        // Extract year letters from "ה'תשפ"ו" -> "תשפ"ו"
+        const hebrewYear = year.split("'")[1] || year;
+
+        return `${hebrewDay} ${month} ${hebrewYear}`;
+    } catch (e) {
+        return 'תאריך לא תקין';
+    }
+}
+
+function showCompletions() {
+    const modal = document.getElementById('completionsModal');
+    const list = document.getElementById('completionsList');
+    if (!modal || !list) return;
+
+    const completedGoals = userGoals.filter(g => g.status === 'completed');
+    list.innerHTML = '';
+
+    if (completedGoals.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:#94a3b8;">עדיין לא סיימת אף ספר. בהצלחה בהמשך!</p>';
+    } else {
+        completedGoals.sort((a, b) => new Date(b.completedDate || 0) - new Date(a.completedDate || 0));
+
+        completedGoals.forEach(goal => {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex; justify-content:space-between; padding: 8px 4px; border-bottom: 1px solid #f1f5f9;';
+            item.innerHTML = `
+                <span style="font-weight:bold;">${goal.bookName}</span>
+                <span style="color:#64748b;">${toHebrewDateString(goal.completedDate)}</span>
+            `;
+            list.appendChild(item);
+        });
+    }
+
     modal.style.display = 'flex';
     bringToFront(modal);
 }

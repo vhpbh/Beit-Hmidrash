@@ -62,6 +62,7 @@
             color: var(--text-main);
             margin: 0;
             padding-bottom: 90px;
+            overflow-y: scroll;
         }
 
         body {
@@ -563,21 +564,20 @@
         }
 
         .header-search-input-wrapper {
-            background: rgba(255, 255, 255, 0.5);
+            background: #f1f5f9;
             padding: 0.5rem 1rem;
             border-radius: 1rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
             color: #64748b;
-            border: 1px solid transparent;
+            border: none;
             transition: all 0.3s;
         }
 
         .header-search-input-wrapper:focus-within {
-            background: #fff;
-            border-color: var(--accent);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: #f1f5f9;
+            box-shadow: 0 0 0 2px var(--accent);
         }
 
         .header-search-input-wrapper input {
@@ -591,8 +591,8 @@
             color: var(--text-main);
         }
 
-        body.dark-mode .header-search-wrapper {
-            background: rgba(0, 0, 0, 0.2);
+        body.dark-mode .header-search-input-wrapper {
+            background: #334155;
             color: #94a3b8;
         }
 
@@ -642,7 +642,8 @@
         .profile-btn {
             background: rgba(255, 255, 255, 0.1);
             border: none;
-            color: white;
+            color: var(--text-main);
+            color: var(--text-main);
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -685,11 +686,6 @@
             border-bottom: none;
         }
 
-        .sticky-note.shared {
-            border: 2px solid #3b82f6;
-            background: #e0f2fe;
-        }
-
         body.dark-mode .profile-dropdown,
         body.dark-mode #notif-dropdown {
             background: #1e293b;
@@ -723,7 +719,7 @@
 
         /* --- כללי --- */
         .container {
-            max-width: 900px;
+            max-width: 1280px;
             margin: 20px auto;
             padding: 0 15px;
         }
@@ -1320,6 +1316,7 @@
             width: 100%;
             max-width: 500px;
             padding: 0 1rem;
+            pointer-events: none; /* Allow clicking through the container area */
         }
 
         .floating-nav {
@@ -1329,6 +1326,14 @@
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            pointer-events: auto; /* Re-enable clicks on the nav itself */
+        }
+
+        .floating-nav-container {
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .floating-nav-container.nav-hidden {
+            transform: translate(-50%, 200%);
         }
 
         .floating-nav-item {
@@ -1430,6 +1435,9 @@
             }
         }
 
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
         /* מתג */
         .switch {
             position: relative;
@@ -1461,7 +1469,7 @@
             content: "";
             height: 16px;
             width: 16px;
-            left: 4px;
+            left: 3px;
             bottom: 4px;
             background-color: white;
             transition: .4s;
@@ -1469,11 +1477,11 @@
         }
 
         input:checked+.slider {
-            background-color: var(--primary);
+            background-color: #FFB703;
         }
 
         input:checked+.slider:before {
-            transform: translateX(26px);
+            transform: translateX(20px);
         }
 
         /* --- תוספת לעיצוב החדש --- */
@@ -1617,70 +1625,6 @@
             border: 1px solid #e2e8f0;
             text-align: right;
         }
-
-        .close-modal {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            /* שים לב: ב-RTL עדיף שמאל */
-            font-size: 28px;
-            font-weight: bold;
-            color: #64748b;
-            cursor: pointer;
-            z-index: 1001;
-            /* מבטיח שהוא יהיה מעל הכל */
-            padding: 10px;
-            /* מגדיל את שטח הלחיצה */
-            line-height: 1;
-        }
-
-        .sticky-note {
-            position: absolute;
-            width: 320px;
-            height: 320px;
-            background: #ffc;
-            box-shadow: 5px 5px 7px rgba(33, 33, 33, .7);
-            transition: transform .15s linear;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sticky-note:hover {
-            transform: scale(1.1);
-            z-index: 999 !important;
-        }
-
-        .note-header {
-            background: #dfc;
-            padding: 5px;
-            cursor: grab;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .note-delete {
-            background: none;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .note-content {
-            flex: 1;
-            background: transparent;
-            border: none;
-            padding: 10px;
-            font-family: 'Heebo', sans-serif;
-            resize: none;
-            font-size: 1rem;
-            height: 220px;
-        }
-
-        .note-content:focus {
-            outline: none;
-        }
-
 
         /* --- עיצוב אדמין כהה ומקצועי --- */
         .admin-card {
@@ -1931,7 +1875,7 @@
         .chat-footer {
             padding: 1rem;
             background: var(--card-bg);
-            border-top: 1px solid var(--border-color);
+            border-top: none; /* Removed mysterious line */
             display: flex;
             gap: 0.75rem;
             align-items: center;
@@ -1946,14 +1890,15 @@
             height: 48px;
             font-size: 1rem;
             background: var(--bg);
-            color: var(--text-main);
+            color: var(--text-main) !important;
             border: none;
             border-radius: 12px;
         }
 
         .chat-footer input:focus {
             outline: none;
-            box-shadow: 0 0 0 2px var(--accent);
+            box-shadow: none; /* Removed ugly border */
+            background: #f1f5f9; /* Slight highlight like main chat */
         }
 
         .chat-footer .btn {
@@ -2505,27 +2450,23 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.4);
+            background-color: rgba(241, 245, 249, 0.85);
+            backdrop-filter: blur(4px);
             z-index: 9999;
-            /* רקע בהיר יותר */
             display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
         }
 
-        .thank-you-box {
-            background: var(--card-bg);
-            color: var(--text-main);
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            border: 5px solid gold;
-            animation: flash-border 1s infinite;
-            max-width: 90%;
-            width: 400px;
-            margin: 0 auto;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        @keyframes celebrate {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-popup {
+            animation: celebrate 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
 
         /* תיקון קריאות במצב לילה */
@@ -2745,6 +2686,20 @@
             cursor: pointer;
             transition: all 0.2s;
             user-select: none;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        #search-tags-container {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 8px;
+            padding-bottom: 5px;
+            scrollbar-width: none;
+        }
+        #search-tags-container::-webkit-scrollbar {
+            display: none;
         }
 
         .search-tag:hover {
@@ -3600,6 +3555,11 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
+        /* Tailwind-like utilities for chat */
+        .rounded-chat { border-radius: 1.25rem; }
+        .rounded-tr-sm { border-top-right-radius: 0.25rem; }
+        .rounded-tl-sm { border-top-left-radius: 0.25rem; }
+
         .chat-list-container {
             padding: 8px;
             display: flex;
@@ -3613,6 +3573,7 @@
             border: 1px solid transparent;
             transition: background-color 0.2s;
             cursor: pointer;
+            margin: 0 8px; /* Added margin to prevent sticking to edges */
         }
 
         .chat-list-item:hover {
@@ -4029,3 +3990,19 @@
         .lb-card:hover {
             border-color: rgba(255, 183, 0, 0.3);
         }
+
+        .soft-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+        }
+        .day-strip {
+            border-right: 4px solid #f59e0b;
+        }
+        .floating-nav-container {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+    transform: translate(-50%, 0);
+}
+.floating-nav-container.nav-hidden {
+    transform: translate(-50%, 150px); /* Move it down by more than its height */
+
+}

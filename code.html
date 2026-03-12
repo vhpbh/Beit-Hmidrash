@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="he"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>החברותות שלי | Chavrusa Match</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&amp;family=Noto+Sans+Hebrew:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#fbbd23",
+                        "background-light": "#f8f7f5",
+                        "background-dark": "#231d0f",
+                        "neutral-soft": "#f4f0e6",
+                        "text-main": "#1c180c",
+                        "text-muted": "#a08646",
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "Noto Sans Hebrew", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Lexend', 'Noto Sans Hebrew', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-main min-h-screen">
+<div class="relative flex flex-col w-full min-h-screen overflow-x-hidden">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-50 bg-background-light/80 backdrop-blur-md border-b border-neutral-soft px-4 md:px-10 py-3 flex items-center justify-between">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<div class="bg-primary p-2 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white">menu_book</span>
+</div>
+<h1 class="text-xl font-bold tracking-tight">Chavrusa Match</h1>
+</div>
+<div class="hidden md:flex items-center bg-neutral-soft rounded-xl px-3 py-1.5 w-64">
+<span class="material-symbols-outlined text-text-muted text-xl">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder:text-text-muted" placeholder="חיפוש חברותא או נושא..." type="text"/>
+</div>
+</div>
+<nav class="hidden lg:flex items-center gap-8">
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">דשבורד</a>
+<a class="text-sm font-bold text-primary border-b-2 border-primary pb-1" href="#">החברותות שלי</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">חיפוש</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">ספריה</a>
+</nav>
+<div class="flex items-center gap-3">
+<button class="p-2 hover:bg-neutral-soft rounded-xl transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-background-light"></span>
+</button>
+<div class="h-10 w-10 rounded-full bg-cover bg-center border-2 border-primary/20" data-alt="User profile avatar circle" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuALyIdT34aCtsBnRk1lWYA-cnq8YQNsKB69Wp_BGDcQ-QvYYZx9hLF9BbKzLAWdzLzgUoHvuXKZPq_YGxBpcFSudQAG0Yb21tl7mWcfwrUsS9gibuUh3QfL3nzZkrfyQlfG4EwHQhw1PNGkuF6iowopZvwrgIJIFg-kO4qaZ9Jcu-EwRaa34Qt9p0ZG6_xGb_2Vwpf4UgWdrqVHpbkFCEUcjYkKUzzIXdEkDLvAHBPzlcDOXuGcBNyV-M4VtQiFOdzzluqynG_fxaJa')"></div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto w-full px-4 py-8 flex flex-col gap-10">
+<!-- Page Hero Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-3 text-primary">
+<span class="material-symbols-outlined text-3xl">group</span>
+<h2 class="text-3xl font-black tracking-tight text-text-main">החברותות שלי</h2>
+</div>
+<p class="text-text-muted text-lg">נהל את קשרי הלימוד והחברותות הפעילות שלך במקום אחד</p>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-text-main font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined">person_add</span>
+<span>חיפוש חברותא חדשה</span>
+</button>
+</div>
+<!-- Active Chavrutas Section -->
+<section class="flex flex-col gap-6">
+<div class="flex items-center justify-between border-b border-neutral-soft pb-4">
+<h3 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">verified</span>
+                        חברותות פעילות
+                    </h3>
+<span class="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">2 פעילות</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Card 1 -->
+<div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-neutral-soft overflow-hidden flex flex-col group hover:shadow-md transition-shadow">
+<div class="h-32 bg-primary/10 relative">
+<div class="absolute -bottom-6 right-6">
+<div class="w-16 h-16 rounded-2xl bg-white border-4 border-white shadow-sm bg-cover bg-center" data-alt="Portrait of Moshe Levi" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBdGTixJ5YT3a4yMZb_aHMxkDQKCPH8RxM5Zgmz00p9Cp6QMPLgpZiXEDBBhoXp-MX4iZAfUDbt39QETyOfQcRyjdtulD_2k97y5w_8lwb52qSnXh7Hc5dvfbISEPqTyExQZTs-S2oolFVxGIU0Z4qD1V4KRQky1DU23ZwEFqBMOuRWpPzu9-36lHCRgzNwjzIHNBBqCxrJBZWw0N4hrUbqOejEcQdDfLO7hgfeWf9Lw1bTKjOVpEBjtu-euTMmH2j7aUD7ch3QECKo')"></div>
+</div>
+<div class="absolute top-4 left-4">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                    חברותא פעילה
+                                </span>
+</div>
+</div>
+<div class="p-6 pt-10 flex flex-col gap-4">
+<div>
+<h4 class="text-xl font-bold flex items-center gap-2">
+                                    משה לוי
+                                    <span class="material-symbols-outlined text-primary text-lg">workspace_premium</span>
+</h4>
+<div class="flex flex-col gap-1 mt-2">
+<div class="flex items-center gap-2 text-text-muted text-sm">
+<span class="material-symbols-outlined text-base">location_on</span>
+<span>אלעד, ישראל</span>
+</div>
+<div class="flex items-center gap-2 text-text-muted text-sm">
+<span class="material-symbols-outlined text-base">call</span>
+<span>050-1234567</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-4 gap-2 border-y border-neutral-soft py-4">
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">person</span>
+</div>
+<span class="text-[10px] font-bold">פרופיל</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">chat</span>
+</div>
+<span class="text-[10px] font-bold">צ'אט</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">schedule</span>
+</div>
+<span class="text-[10px] font-bold">זמנים</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">menu_book</span>
+</div>
+<span class="text-[10px] font-bold">ספר</span>
+</button>
+</div>
+<button class="w-full py-2.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 transition-colors text-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-base">cancel</span>
+                                ביטול חברותא
+                            </button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-neutral-soft overflow-hidden flex flex-col group hover:shadow-md transition-shadow">
+<div class="h-32 bg-primary/10 relative">
+<div class="absolute -bottom-6 right-6">
+<div class="w-16 h-16 rounded-2xl bg-white border-4 border-white shadow-sm bg-cover bg-center" data-alt="Portrait of Yossi Cohen" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBv8GL7v9SZ6a1AjoJN_kZ_vQpUzKGgH2r6hRRoq1s-SZ__x544wlDgpPL1mZMKXshmHJ0RYUvFtEvIAIN9hQTwOGJ9MRiKBl3SvvHSqN_AsMsz1dnbEh4SIxFzi-9ceYjOtBxjd6qn9dXYPauZwZKuQ9_hr9eibnwurD_U7vib5SQ7D5nIAMC57kboe9iT_3XXMQ38YPlknP8_k7mGjcyaRw5hBEZvq0AdYKjQHdyosDyGtoTCDFkJqJfxc-Y8TURzTWo8pItAW5eZ')"></div>
+</div>
+<div class="absolute top-4 left-4">
+<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                    חברותא פעילה
+                                </span>
+</div>
+</div>
+<div class="p-6 pt-10 flex flex-col gap-4">
+<div>
+<h4 class="text-xl font-bold flex items-center gap-2">
+                                    יוסי כהן
+                                    <span class="material-symbols-outlined text-primary text-lg">workspace_premium</span>
+</h4>
+<div class="flex flex-col gap-1 mt-2">
+<div class="flex items-center gap-2 text-text-muted text-sm">
+<span class="material-symbols-outlined text-base">location_on</span>
+<span>ירושלים, ישראל</span>
+</div>
+<div class="flex items-center gap-2 text-text-muted text-sm">
+<span class="material-symbols-outlined text-base">call</span>
+<span>052-9876543</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-4 gap-2 border-y border-neutral-soft py-4">
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">person</span>
+</div>
+<span class="text-[10px] font-bold">פרופיל</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">chat</span>
+</div>
+<span class="text-[10px] font-bold">צ'אט</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">schedule</span>
+</div>
+<span class="text-[10px] font-bold">זמנים</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="p-2 bg-neutral-soft rounded-lg text-text-main group-hover/btn:bg-primary transition-colors">
+<span class="material-symbols-outlined">menu_book</span>
+</div>
+<span class="text-[10px] font-bold">ספר</span>
+</button>
+</div>
+<button class="w-full py-2.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 transition-colors text-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-base">cancel</span>
+                                ביטול חברותא
+                            </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Pending Requests Section -->
+<section class="flex flex-col gap-6">
+<div class="flex items-center justify-between border-b border-neutral-soft pb-4">
+<h3 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">pending_actions</span>
+                        בקשות ממתינות לאישור
+                    </h3>
+</div>
+<div class="bg-neutral-soft/50 rounded-2xl p-6 border border-dashed border-text-muted/30">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Pending Item 1 -->
+<div class="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm border border-neutral-soft">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-cover bg-center" data-alt="Portrait of Abraham Goldberg" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuANhRb6EYKdkDJ0RU5iwc1wPIlIgXOvVbGnXsHnFtJ4EV_xI5mFQ4XBBCI0qMPkdU34ajcgm7Si6FTkI2uhPQVA0JK3gweYrkOkjaBWqT2PGYjT8K9Rd_tc0-mcjm0Jo5KxhZlAzfhmYv1D7SB1Rq6eyIHweycG5mS2p4NfqOTYZTtYot0QhE5e9rO-dI8wPztMe4JmqcqM38WO7iPyy4H5qYbGFF1_u9Ofxt2yNnIXFuJmTWgqfh8lJxn4jwGNbJxQPK4SV6Uejf5k')"></div>
+<div class="flex flex-col">
+<span class="font-bold">אברהם גולדברג</span>
+<span class="text-xs text-text-muted flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">auto_stories</span>
+                                        לימוד משותף: מסכת ברכות
+                                    </span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-xs text-text-muted bg-neutral-soft px-2 py-1 rounded-md">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                                    לפני שעתיים
+                                </div>
+<button class="text-red-600 text-xs font-bold hover:underline decoration-red-200 underline-offset-4">ביטול בקשה</button>
+</div>
+</div>
+<!-- Pending Item 2 -->
+<div class="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm border border-neutral-soft">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-cover bg-center" data-alt="Portrait of Shimon Levi" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCkmy-fFCCiatOoDaHIuQ7XqJbGzbx0Yyakg3SnfaU8INFEmkmTqgBP6BYv-OWSdTf82g2yqfOK3HKvAFuiYL5CGlMoH-oGyPd7XIbtYg8mug-Xeth7BaNUjf3gS0OAlPIgcQT0gcOK1X4m0aOxke8BpSm1xGrtqQy_S7Slf3NVryhs4Rsjaydb8YXG31o01AGzFAM9dRtgzIPrTClut0WZAbIGaZ6loJwPDq4evAjrRIdRLrcPEz7EGG1fBL6maq9jgP6Q-1Ocko7S')"></div>
+<div class="flex flex-col">
+<span class="font-bold">שמעון לוי</span>
+<span class="text-xs text-text-muted flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">auto_stories</span>
+                                        לימוד משותף: דף היומי
+                                    </span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 text-xs text-text-muted bg-neutral-soft px-2 py-1 rounded-md">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                                    אתמול
+                                </div>
+<button class="text-red-600 text-xs font-bold hover:underline decoration-red-200 underline-offset-4">ביטול בקשה</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation for Mobile -->
+<div class="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-neutral-soft px-6 py-3 flex items-center justify-between z-50 shadow-2xl">
+<button class="flex flex-col items-center gap-1 text-text-muted">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px]">בית</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-bold">חברותות</span>
+</button>
+<div class="-mt-8">
+<button class="w-12 h-12 bg-primary text-white rounded-full shadow-lg shadow-primary/40 flex items-center justify-center border-4 border-white">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<button class="flex flex-col items-center gap-1 text-text-muted">
+<span class="material-symbols-outlined">search</span>
+<span class="text-[10px]">חיפוש</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-text-muted">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px]">הגדרות</span>
+</button>
+</div>
+</div>
+<input type='hidden' name='ntsp_block_page' value='https://safepage.etrog.net.il/?a=block/block1&level=5&url=http%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ8Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpbCiVodG1sXzNiMTE4ZDE1ZTRhZDQ5MzU4NzJkODQ2NGNjZDA5OWQ0EgsSBxChi7GCigUYAZIBJAoKcHJvamVjdF9pZBIWQhQxNDcwNDAwNzI3MTM4NjM4NDc5MA%26filename%3D%26opi%3D89354086&user_id=582805&sigid=9fbe03793a9ef6a61144a5aa1c941c39723405f16cec73710eea4b945b65be92&startm=202302&keyword=&referer=https%3A%2F%2Fapp-companion-430619.appspot.com%2F&category=66&cause=Quiltingjs'/><input type='hidden' name='nts_id' value='582805'/><input type='hidden' name='sigid' value='c88486ea4abb8d1a8d35a0c4e4c7ae99'/><script src='/jsQuilting/server/etAddOn.js?v=1&k=23898278c1850f536d688db3614128a0' type='text/javascript' defer></script></body></html>
